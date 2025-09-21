@@ -7,6 +7,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(SOURCE_CODE 
     Handle.hpp
+    ImGuiHelper.hpp ImGuiHelper.cpp 
+    Random.cpp Random.hpp
     Shader.hpp Shader.cpp
     main.cpp
 )
