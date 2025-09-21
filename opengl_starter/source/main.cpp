@@ -73,6 +73,7 @@ void setup()
     // we don't care Mview(world->camera) yet
     // if we want to matrix that affect whole models(not a single vertex), we can make in glsl uniform(all same) transformation matrix
 
+    //just use ndc's xy cause this value is still hardcoded
     //**gl use floats only
     //to feed real matrix to uModel and uToNDC....go to game logic
     const auto vertex_glsl = R"(#version 300 es
@@ -85,7 +86,7 @@ void main()
 {
     vec3 cam_position = uModel * vec3(aVertexPosition, 1.0);
     vec3 ndc_position = uToNDC * cam_position;
-    gl_Position = vec4(ndc_position, 0.0, 1.0);
+    gl_Position = vec4(ndc_position.xy, 0.0, 1.0);
     vColor = aVertexColor;
 
 }
@@ -335,8 +336,9 @@ void main_loop()
     //in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
 
     // drawing
-    glUseProgram(gShader.Shader);//ask gl to use shader
-    glUniformMatrix3fv(gShader.UniformLocations.at());//bind it first
+    glUseProgram(gShader.Shader);//ask gl to use shader, bind gShader to opengl
+    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());  // bind matrices first
     glBindVertexArray(gVertexArrayObject); //select which model we want to draw
 
     glDrawElements(GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
