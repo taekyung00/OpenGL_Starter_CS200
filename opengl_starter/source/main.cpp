@@ -7,8 +7,8 @@
 
 #include "Handle.hpp"
 #include "ImGuiHelper.hpp"
+#include "Random.hpp"
 #include "Shader.hpp"
-
 #include <GL/glew.h>
 #include <SDL.h>
 #include <array>   //feed array to vertex shader, and vertex shader do NDC
@@ -51,12 +51,31 @@ float                     gRotate{ 0 };
 // multiple models
 struct ObjectData
 {
-    std::array<float, 2> gPosition{};
-    std::array<float, 2> gScale{ 128.f, 128.f };
-    float                gRotate{ 0 };
+    std::array<float, 2> Position{};
+    std::array<float, 2> Scale{ 128.f, 128.f };
+    float                Rotate{ 0 };
 };
 
-std::array<ObjectData, 100> gObjects;
+std::array<ObjectData, 1> gObjects;
+
+struct Background
+{
+    OpenGL::Handle vertexBuffer{}; // will used with opengl functions to update this every frame
+    OpenGL::Handle indexBuffer{};
+    OpenGL::Handle vertexArrayObject{};
+
+    struct Vertex
+    {
+        float         pos[2]{};
+        unsigned char color[4]{};
+    };
+
+    std::vector<Vertex> vertices{};
+    GLsizei             indicesCount = 0;
+} gBackground{};
+
+void setup_background();
+
 void setup()
 {
     // raw string supported by C++
@@ -174,8 +193,10 @@ void main()
     // buffer of vertex data
     glGenBuffers(1, &gVertexBuffer);              // generate buffers, set up to create many buffers all in one go, create a unique ID
     glBindBuffer(GL_ARRAY_BUFFER, gVertexBuffer); // feed this vertex buffer with my verticies data but before bind unique buffer, param : type of buffer, param : unique id
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); // feed, param : type, param : size, param : real data(decay to pointer), param : static/dynamic
-    glBindBuffer(GL_ARRAY_BUFFER, 0);                                          // unbind - good practice, 0 means nothing : no buffer
+    glBufferData(
+        GL_ARRAY_BUFFER, sizeof(vertices), vertices,
+        GL_STATIC_DRAW);              // feed, param : type, param : size, param : real data(decay to pointer), param : static(not change)/dynamic(somtimes change) / stream(always change)
+    glBindBuffer(GL_ARRAY_BUFFER, 0); // unbind - good practice, 0 means nothing : no buffer
 
     // buffer of index data
     glGenBuffers(1, &gIndexBuffer);
@@ -212,6 +233,16 @@ void main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     ImGuiHelper::Initialize(gWindow, gContext);
+
+    for (auto& obj : gObjects)
+    {
+        obj.Position[0] = util::random(-500.0f, 500.f);
+        obj.Position[1] = util::random(-500.0f, 500.f);
+        obj.Scale[0]    = util::random(64.0f, 256.f);
+        obj.Scale[1]    = obj.Scale[0];
+        obj.Rotate      = util::random(0.0f, 3.1415f);
+    }
+    setup_background();
 }
 
 void main_loop();
@@ -335,17 +366,39 @@ void main_loop()
     // sx*cos  -sy*sin  px
     // sx*sin   sy*cos  py
     //   0        0     1
-    const auto           cos_a = std::cos(gRotate); // input degree, output real value
-    const auto           sin_a = std::sin(gRotate);
-    std::array<float, 9> model{ gScale[0] * cos_a, gScale[0] * sin_a, 0.0f, -gScale[1] * sin_a, gScale[1] * cos_a, 0.0f, gPosition[0], gPosition[1], 1.0f };
-    // in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
+
+    // draw background
+    auto                 cos_a = std::cos(gRotate); // input degree, output real value
+    auto                 sin_a = std::sin(gRotate);
+    std::array<float, 9> model{ 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+
 
     // drawing
     glUseProgram(gShader.Shader);                                                          // ask gl to use shader, bind gShader to opengl
-    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());  // bind matrices first
-    glBindVertexArray(gVertexArrayObject);                                                 // select which model we want to draw
+    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first, ndc matrix has to be uniform because it doesn't change
 
+    glBindVertexArray(gBackground.vertexArrayObject);                                     // select background model
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
+    glDrawElements(
+        GL_TRIANGLES, gBackground.indicesCount, GL_UNSIGNED_SHORT,
+        nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
+    // in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
+    glBindVertexArray(gVertexArrayObject); // select which model we want to draw - smily face model
+
+    for (const auto& obj : gObjects)
+    {
+        cos_a = std::cos(obj.Rotate);
+        sin_a = std::sin(obj.Rotate);
+        model = { obj.Scale[0] * cos_a, obj.Scale[0] * sin_a, 0.0f, -obj.Scale[1] * sin_a, obj.Scale[1] * cos_a, 0.0f, obj.Position[0], obj.Position[1], 1.0f };
+        glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
+        glDrawElements(
+            GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
+    }
+
+    cos_a = std::cos(gRotate);
+    sin_a = std::sin(gRotate);
+    model = { gScale[0] * cos_a, gScale[0] * sin_a, 0.0f, -gScale[1] * sin_a, gScale[1] * cos_a, 0.0f, gPosition[0], gPosition[1], 1.0f };
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
     glDrawElements(
         GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
 
@@ -369,4 +422,8 @@ void main_loop()
 
     // swap framebuffers - double buffer, so when drawing is done, now it's time to show on screen, painter metaphor..
     SDL_GL_SwapWindow(gWindow);
+}
+
+void setup_background()
+{
 }
