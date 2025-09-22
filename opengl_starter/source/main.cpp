@@ -340,7 +340,28 @@ void main_loop()
 
     // game logic
     const float elapsed = static_cast<float>( SDL_GetTicks()) / 1000.f; //milleseconds to seconds
+    float offset = 0;
+    for (auto& vert : gBackground.vertices){
+        vert.pos[0] += 1.0f * std::sin(elapsed * 0.5f + offset);
+        vert.pos[1] += 1.0f * std::cos(elapsed * 0.5f + offset);
+        offset += 0.1f;
 
+        const auto s1 = (std::sin(elapsed * 2.5f + offset) + 1.0f) * 0.5f ;
+        const auto s2 = (std::sin(elapsed * 0.5f + offset) + 1.0f) * 0.5f ;
+        const auto s3 = (std::sin(elapsed * 20.5f + offset) + 1.0f) * 0.5f ;
+
+        const auto rt = s1* 0.5f + s2 * 0.3f + s3 * 0.2f; // weight sum for avoiding monotorous
+        const auto gt = s1* 0.25f + s2 * 0.6f + s3 * 0.15f; // weight sum for avoiding monotorous
+        const auto bt = s1* 0.1f + s2 * 0.1f + s3 * 0.8f; // weight sum for avoiding monotorous
+
+        vert.color[0] = static_cast<unsigned char>(rt * 255.0f);
+        vert.color[1] = static_cast<unsigned char>(gt * 255.0f);
+        vert.color[2] = static_cast<unsigned char>(bt * 255.0f);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
+    glBufferSubData(GL_ARRAY_BUFFER, 0 , static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), gBackground.vertices.data()); // just sub? ****
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     // drawing with opengl
     glViewport(0, 0, gWidth, gHeight); // param : (offset.x,offset.y,width,height) useful to set offset if game has two player and each has their own camera , feed latest-updated window sized so..
     glClearColor(0.34f, 0.56f, 0.9f, 1.0f); // just 'set' window color
