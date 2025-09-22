@@ -1,0 +1,1 @@
+- [ ] what if bind(1 element array, 1 array, 1 vertex array) - make things - unbind (1 1 1)  < not doing like this but  (M element arrays, M array, M vertex array)?

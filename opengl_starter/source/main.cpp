@@ -339,7 +339,7 @@ void main_loop()
     } // while loop for event
 
     // game logic
-
+    const float elapsed = static_cast<float>( SDL_GetTicks()) / 1000.f; //milleseconds to seconds
 
     // drawing with opengl
     glViewport(0, 0, gWidth, gHeight); // param : (offset.x,offset.y,width,height) useful to set offset if game has two player and each has their own camera , feed latest-updated window sized so..
@@ -379,9 +379,8 @@ void main_loop()
 
     glBindVertexArray(gBackground.vertexArrayObject);                                     // select background model
     glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
-    glDrawElements(
-        GL_TRIANGLES, gBackground.indicesCount, GL_UNSIGNED_SHORT,
-        nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
+    glDrawElements(GL_TRIANGLES, gBackground.indicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
+
     // in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
     glBindVertexArray(gVertexArrayObject); // select which model we want to draw - smily face model
 
@@ -426,4 +425,98 @@ void main_loop()
 
 void setup_background()
 {
+	std::vector<unsigned short> indices;
+
+	//create values of model
+	const int W = 100;
+	const int H = 100;
+	unsigned vertex_index = 0;
+	// unsigned indeces_index = 0;
+	for(int row = 0; row < H; ++row){
+		for(int column = 0;column < W; ++column){
+			constexpr float quad_size = 32;
+			Background::Vertex vert;
+
+			//bottom left
+			vert.pos[0] = static_cast<float>(column) * quad_size - static_cast<float>(W/2) * quad_size;
+			vert.pos[1] = static_cast<float>(row) * quad_size- static_cast<float>(H/2) * quad_size;
+			vert.color[0] = 255;
+			vert.color[1] = 0;
+			vert.color[2] = 0;
+			vert.color[3] = 255;
+			gBackground.vertices.push_back(vert);
+
+			//bottom right
+			vert.pos[0] = static_cast<float>(column + 1) * quad_size- static_cast<float>(W/2) * quad_size;
+			vert.pos[1] = static_cast<float>(row) * quad_size- static_cast<float>(H/2) * quad_size;
+			vert.color[0] = 0;
+			vert.color[1] = 255;
+			vert.color[2] = 0;
+			vert.color[3] = 255;
+			gBackground.vertices.push_back(vert);
+
+			//top right
+			vert.pos[0] = static_cast<float>(column + 1) * quad_size- static_cast<float>(W/2) * quad_size;
+			vert.pos[1] = static_cast<float>(row + 1) * quad_size- static_cast<float>(H/2) * quad_size;
+			vert.color[0] = 0;
+			vert.color[1] = 0;
+			vert.color[2] = 255;
+			vert.color[3] = 255;
+			gBackground.vertices.push_back(vert);
+
+			//top left
+			vert.pos[0] = static_cast<float>(column) * quad_size- static_cast<float>(W/2) * quad_size;
+			vert.pos[1] = static_cast<float>(row + 1) * quad_size- static_cast<float>(H/2) * quad_size;
+			vert.color[0] = 255;
+			vert.color[1] = 0;
+			vert.color[2] = 255;
+			vert.color[3] = 255;
+			gBackground.vertices.push_back(vert);
+
+			//make indices
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 0);
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 1);
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 2);
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 0);
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 2);
+			indices.push_back( static_cast<unsigned short>(vertex_index) + 3);
+
+			vertex_index += 4;
+			// indeces_index += 6;
+		}
+	}
+    gBackground.indicesCount = static_cast<GLsizei>( indices.size());
+	//now make buffer
+
+	glGenBuffers(1, &gBackground.vertexBuffer);
+	glGenBuffers(1, &gBackground.indexBuffer);
+	glGenVertexArrays(1, &gBackground.vertexArrayObject);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gBackground.indexBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(indices[0])), indices.data(), GL_STATIC_DRAW);//dont change
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), nullptr, GL_DYNAMIC_DRAW);//change, so we dont know what values vertices are, so it is common to put nullptr(not copy real data,but just for space) in there
+	glBufferSubData(GL_ARRAY_BUFFER, 0 , static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), gBackground.vertices.data()); //after make sure how big date is by glBufferData, change values with this func, put data, param_2nd : offset - we can handle just part of data
+	glBindBuffer(GL_ARRAY_BUFFER,0);
+
+	glBindVertexArray(gBackground.vertexArrayObject);
+	glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gBackground.indexBuffer);
+
+	glEnableVertexAttribArray(0);                                             // turn on location 0
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Background::Vertex), nullptr); // param : index(location), dimension(2d), type, should we normalize?(no, we hardcorded), stride: how many amount of jump
+                                                                              // do we need to go next data, location of the very first bytes to be read : 0, but it takes void* so..
+    glVertexAttribDivisor(0, 0); // called instancing..not now, param : index, how many instances of this mode need this value ; don't need this right now but use in assign
+
+    // describes our rgb color
+    glEnableVertexAttribArray(1);         // turn on location 1
+    ptrdiff_t offset = 2 * sizeof(float); // because {x,y,*r*,g,b} -> need 2 offset!
+    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Background::Vertex), reinterpret_cast<void*>(offset));
+    glVertexAttribDivisor(1, 0);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
