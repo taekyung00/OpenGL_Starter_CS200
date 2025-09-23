@@ -61,38 +61,21 @@ void setup()
     //but now, we hardcoded to get our positon already in NDC space so don't care
     //w has to be 1, -1 to +1 with z
 
-    //need to be interpolated across the vertices(triangle)
-    //triangle color from vertex shader -> (*) -> fragment shader
-    //to communicate, make out variable vec3
-    /*=======================================================================================================*/
 
-    //in open gl, elements are specified in column order
-    // ex) {1,2 //first column , 3,4 //second column}
-    // multiply mat2 to scale
-    // model -(with model matrix,Mm)> world -(with view matrix,Mview)> camera/view -(with ndc, Mndc)> normalized -(with viewport, Mviewport)>  screen ->framebuffer
-    // we don't care Mview(world->camera) yet
-    // if we want to matrix that affect whole models(not a single vertex), we can make in glsl uniform(all same) transformation matrix
-
-    //**gl use floats only
-    //to feed real matrix to uModel and uToNDC....go to game logic
     const auto vertex_glsl = R"(#version 300 es
 layout(location = 0) in vec2 aVertexPosition;
 layout(location = 1) in vec3 aVertexColor;
-uniform mat3 uModel;
-uniform mat3 uToNDC;
 out vec3 vColor;
 void main()
 {
-    vec3 cam_position = uModel * vec3(aVertexPosition, 1.0);
-    vec3 ndc_position = uToNDC * cam_position;
-    gl_Position = vec4(ndc_position, 0.0, 1.0);
+    gl_Position = vec4(aVertexPosition, 0.0, 1.0);
     vColor = aVertexColor;
-
+    
 }
 )";
 //now put things to the fragment shader
 //decide precision
-    const auto fragment_glst = R"(#version 300 es
+    const auto fragment_glsl = R"(#version 300 es
 precision mediump float;
 
 in vec3 vColor;
@@ -103,7 +86,7 @@ void main()
     FragColor = vec4(vColor, 1.0);
 }
 )";
-    gShader                  = OpenGL::CreateShader(std::string_view{ vertex_glsl }, std::string_view{ fragment_glst });
+    gShader                  = OpenGL::CreateShader(std::string_view{ vertex_glsl }, std::string_view{ fragment_glsl });
 
     struct vertex
     {
@@ -305,38 +288,10 @@ void main_loop()
     glClearColor(0.34f, 0.56f, 0.9f, 1.0f); // just 'set' window color
     glClear(GL_COLOR_BUFFER_BIT); //actually clear
 
-    //to feed to the uModel and uToNDC
-    // 2/w 0 0
-    // 0 2/h 0
-    // 0  0  1
-    std::array<float, 9> to_ndc{ 
-        2.0f / static_cast<float>(gWidth), 
-        0.0f, 
-        0.0f, //column 0
-        0.0f, 
-        2.0f / static_cast<float>(gHeight),
-        0.0f, //column 1
-        0.0f,
-        0.0f,
-        1.0f //column 2
-    };
-
-    std::array<float, 9> model{
-        128.0f,
-        0.0f,
-        0.0f, // column 0
-        0.0f,
-        128.0f,
-        0.0f, // column 1
-        0.0f,
-        0.0f,
-        1.0f // column 2
-    };
-    //in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
+    
 
     // drawing
     glUseProgram(gShader.Shader);//ask gl to use shader
-    glUniformMatrix3fv(gShader.UniformLocations.at());//bind it first
     glBindVertexArray(gVertexArrayObject); //select which model we want to draw
 
     glDrawElements(GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
