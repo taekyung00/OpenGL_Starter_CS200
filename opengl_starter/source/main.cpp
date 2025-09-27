@@ -5,15 +5,11 @@
  * \copyright DigiPen Institute of Technology
  */
 
-#include "Handle.hpp"
+
 #include "ImGuiHelper.hpp"
-#include "Random.hpp"
-#include "Shader.hpp"
 #include <GL/glew.h>
 #include <SDL.h>
-#include <array>   //feed array to vertex shader, and vertex shader do NDC
 #include <gsl/gsl> //owner template
-#include <imgui.h>
 #include <iostream>
 
 gsl::owner<SDL_Window*> gWindow = nullptr; // mental reminder

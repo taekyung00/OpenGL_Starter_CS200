@@ -6,11 +6,14 @@
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(SOURCE_CODE 
+
+    demo.cpp
     Handle.hpp
-    ImGuiHelper.hpp ImGuiHelper.cpp 
-    Random.cpp Random.hpp
-    Shader.hpp Shader.cpp
+    ImGuiHelper.hpp ImGuiHelper.cpp
     main.cpp
+    Path.hpp Path.cpp
+    Random.hpp Random.cpp
+    Shader.hpp Shader.cpp
 )
 
 add_executable(cs200_fun ${SOURCE_CODE})
