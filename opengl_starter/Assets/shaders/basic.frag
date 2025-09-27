@@ -9,12 +9,18 @@ precision mediump float;
  * \copyright DigiPen Institute of Technology
  */
 
-uniform vec4 uColor;
+uniform sampler2D uTexuture;
+
+in vec2 vTexCoord;
 
 layout(location = 0) out vec4 FragColor;
+
+uniform vec4 uTint; //  cover with new color
 
 void main()
 {
     // FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    FragColor = uColor;
+    FragColor = texture(uTexuture, vTexCoord) * uTint; //it will return vec of rgba
+    if(FragColor.a == 0.0) 
+    discard;//discard background
 }

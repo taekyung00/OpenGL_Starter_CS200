@@ -13,6 +13,10 @@
 #include <iostream>
 
 gsl::owner<SDL_Window*> gWindow = nullptr; // mental reminder
+gsl::owner<SDL_GLContext> gContext = nullptr;
+bool                      gIsDone  = false;
+int                       gWidth        = 800;
+int                       gHeight       = 600;
 
 #if defined(__EMSCRIPTEN__)
 #    include <emscripten.h> //for emscripten_set_main_loop
@@ -28,217 +32,15 @@ EMSCRIPTEN_BINDINGS(main_window)
 
 #endif
 
+void demo_setup();
+void demo_draw();
+void demo_imgui();
 
-gsl::owner<SDL_GLContext> gContext = nullptr;
-bool                      gIsDone  = false;
-OpenGL::CompiledShader    gShader;
-// keep track of GPU resources by creating a handle
-OpenGL::Handle            gVertexBuffer; // hold the unique set of vertices
-OpenGL::Handle            gIndexBuffer;
-// collect all together
-OpenGL::Handle            gVertexArrayObject; // handle to our model data , everything that the model needs
-GLsizei                   gIndicesCount = 0;
-int                       gWidth        = 800;
-int                       gHeight       = 600;
-std::array<float, 2>      gPosition{};
-std::array<float, 2>      gScale{ 128.f, 128.f };
-float                     gRotate{ 0 };
-
-// multiple models
-struct ObjectData
-{
-    std::array<float, 2> Position{};
-    std::array<float, 2> Scale{ 128.f, 128.f };
-    float                Rotate{ 0 };
-};
-
-std::array<ObjectData, 1> gObjects;
-
-struct Background
-{
-    OpenGL::Handle vertexBuffer{}; // will used with opengl functions to update this every frame
-    OpenGL::Handle indexBuffer{};
-    OpenGL::Handle vertexArrayObject{};
-
-    struct Vertex
-    {
-        float         pos[2]{};
-        unsigned char color[4]{};
-    };
-
-    std::vector<Vertex> vertices{};
-    GLsizei             indicesCount = 0;
-} gBackground{};
-
-void setup_background();
 
 void setup()
 {
-    // raw string supported by C++
-    // version(webgl2 == opengl3),describe what kind of layout our vertices are going to be
-    // location0 - very first variable-attribute
-    // order doesn't matter
-    // gl_Position - put clip space if we're doing 3D or NDC if 2D(check PDF!)
-    // in normaly we have to transformation our coordinates
-    // but now, we hardcoded to get our positon already in NDC space so don't care
-    // w has to be 1, -1 to +1 with z
-
-    // need to be interpolated across the vertices(triangle)
-    // triangle color from vertex shader -> (*) -> fragment shader
-    // to communicate, make out variable vec3
-    /*=======================================================================================================*/
-
-    // in open gl, elements are specified in column order
-    //  ex) {1,2 //first column , 3,4 //second column}
-    //  multiply mat2 to scale
-    //  model -(with model matrix,Mm)> world -(with view matrix,Mview)> camera/view -(with ndc, Mndc)> normalized -(with viewport, Mviewport)>  screen ->framebuffer
-    //  we don't care Mview(world->camera) yet
-    //  if we want to matrix that affect whole models(not a single vertex), we can make in glsl uniform(all same) transformation matrix
-
-    // just use ndc's xy cause this value is still hardcoded
-    //**gl use floats only
-    // to feed real matrix to uModel and uToNDC....go to game logic
-    const auto vertex_glsl   = R"(#version 300 es
-layout(location = 0) in vec2 aVertexPosition;
-layout(location = 1) in vec3 aVertexColor;
-uniform mat3 uModel;
-uniform mat3 uToNDC;
-out vec3 vColor;
-void main()
-{
-    vec3 cam_position = uModel * vec3(aVertexPosition, 1.0);
-    vec3 ndc_position = uToNDC * cam_position;
-    gl_Position = vec4(ndc_position.xy, 0.0, 1.0);
-    vColor = aVertexColor;
-
-}
-)";
-    // now put things to the fragment shader
-    // decide precision
-    const auto fragment_glst = R"(#version 300 es
-precision mediump float;
-
-in vec3 vColor;
-out vec4 FragColor;
-
-void main()
-{
-    FragColor = vec4(vColor, 1.0);
-}
-)";
-    gShader                  = OpenGL::CreateShader(std::string_view{ vertex_glsl }, std::string_view{ fragment_glst });
-
-    struct vertex
-    {
-        float x;
-        float y;
-        float r;
-        float g;
-        float b;
-    };
-
-    const vertex vertices[] = {
-        // face verts
-        {   -0.5,   -0.5, 1, 1, 0 },
-        {   +0.5,   -0.5, 1, 1, 0 },
-        {   +0.5,   +0.5, 1, 1, 0 },
-        {   -0.5,   +0.5, 1, 1, 0 },
-        // left eye
-        { -0.375, +0.125, 0, 0, 0 },
-        { -0.125, +0.125, 0, 0, 0 },
-        { -0.125,  +0.25, 0, 0, 0 },
-        { -0.375,  +0.25, 0, 0, 0 },
-        // right eye
-        { +0.125, +0.125, 0, 0, 0 },
-        { +0.375, +0.125, 0, 0, 0 },
-        { +0.375,  +0.25, 0, 0, 0 },
-        { +0.125,  +0.25, 0, 0, 0 },
-        // left mouth part
-        { -0.375,  -0.25, 0, 0, 0 },
-        {  -0.25,  -0.25, 0, 0, 0 },
-        {  -0.25, -0.125, 0, 0, 0 },
-        { -0.375, -0.125, 0, 0, 0 },
-        // right mouth part
-        {  +0.25,  -0.25, 0, 0, 0 },
-        { +0.375,  -0.25, 0, 0, 0 },
-        { +0.375, -0.125, 0, 0, 0 },
-        {  +0.25, -0.125, 0, 0, 0 },
-        // bottom middle mouth
-        {  -0.25, -0.375, 0, 0, 0 },
-        {  +0.25, -0.375, 0, 0, 0 },
-    };
-
-    // Triangle indices
-    const unsigned short indices[] = { // face
-                                       0, 1, 2, 0, 2, 3,
-                                       // left eye
-                                       4, 5, 6, 4, 6, 7,
-                                       // right eye
-                                       8, 9, 10, 8, 10, 11,
-                                       // mouth
-                                       // left mouth part
-                                       12, 13, 14, 12, 14, 15, 12, 20, 13,
-                                       // right mouth part
-                                       16, 17, 18, 16, 18, 19, 16, 21, 17,
-                                       // middle mouth part
-                                       20, 21, 16, 20, 16, 13
-
-    };
-    gIndicesCount = static_cast<GLsizei>(std::ssize(indices)); // size for just size, ssize for signed size
-
-    // buffer of vertex data
-    glGenBuffers(1, &gVertexBuffer);              // generate buffers, set up to create many buffers all in one go, create a unique ID
-    glBindBuffer(GL_ARRAY_BUFFER, gVertexBuffer); // feed this vertex buffer with my verticies data but before bind unique buffer, param : type of buffer, param : unique id
-    glBufferData(
-        GL_ARRAY_BUFFER, sizeof(vertices), vertices,
-        GL_STATIC_DRAW);              // feed, param : type, param : size, param : real data(decay to pointer), param : static(not change)/dynamic(somtimes change) / stream(always change)
-    glBindBuffer(GL_ARRAY_BUFFER, 0); // unbind - good practice, 0 means nothing : no buffer
-
-    // buffer of index data
-    glGenBuffers(1, &gIndexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBuffer); // opengl use word 'element' to specify indices
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    // vertex array object - collection of the vertices and indices and description of how they're organized : model
-    glGenVertexArrays(1, &gVertexArrayObject);
-    glBindVertexArray(gVertexArrayObject);
-    // associate our vertex&index buffers with this VAO
-    glBindBuffer(GL_ARRAY_BUFFER, gVertexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBuffer);
-
-    // tell opengl how we organized the vertices for the vertex shader
-    // to feed our data into the vertex shader
-    // we have to attributes (location 0, location 1) -> we have to turn them on and describe them
-
-    // describes our 2d position
-    glEnableVertexAttribArray(0);                                             // turn on location 0
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), nullptr); // param : index(location), dimension(2d), type, should we normalize?(no, we hardcorded), stride: how many amount of jump
-                                                                              // do we need to go next data, location of the very first bytes to be read : 0, but it takes void* so..
-    glVertexAttribDivisor(0, 0); // called instancing..not now, param : index, how many instances of this mode need this value ; don't need this right now but use in assign
-
-    // describes our rgb color
-    glEnableVertexAttribArray(1);         // turn on location 1
-    ptrdiff_t offset = 2 * sizeof(float); // because {x,y,*r*,g,b} -> need 2 offset!
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), reinterpret_cast<void*>(offset));
-    glVertexAttribDivisor(1, 0);
-
-    // un-select VAO&buffers, unbind
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0); //**already unbind??
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
     ImGuiHelper::Initialize(gWindow, gContext);
-
-    for (auto& obj : gObjects)
-    {
-        obj.Position[0] = util::random(-500.0f, 500.f);
-        obj.Position[1] = util::random(-500.0f, 500.f);
-        obj.Scale[0]    = util::random(64.0f, 256.f);
-        obj.Scale[1]    = obj.Scale[0];
-        obj.Rotate      = util::random(0.0f, 3.1415f);
-    }
-    setup_background();
+    demo_setup();
 }
 
 void main_loop();
@@ -334,206 +136,17 @@ void main_loop()
         //
     } // while loop for event
 
+
+
     // game logic
-    const float elapsed = static_cast<float>( SDL_GetTicks()) / 1000.f; //milleseconds to seconds
-    float offset = 0;
-    for (auto& vert : gBackground.vertices){
-        vert.pos[0] += 1.0f * std::sin(elapsed * 0.5f + offset);
-        vert.pos[1] += 1.0f * std::cos(elapsed * 0.5f + offset);
-        offset += 0.1f;
+    glViewport(0, 0, gWidth, gHeight);
+    demo_draw();
 
-        const auto s1 = (std::sin(elapsed * 2.5f + offset) + 1.0f) * 0.5f ;
-        const auto s2 = (std::sin(elapsed * 0.5f + offset) + 1.0f) * 0.5f ;
-        const auto s3 = (std::sin(elapsed * 20.5f + offset) + 1.0f) * 0.5f ;
-
-        const auto rt = s1* 0.5f + s2 * 0.3f + s3 * 0.2f; // weight sum for avoiding monotorous
-        const auto gt = s1* 0.25f + s2 * 0.6f + s3 * 0.15f; // weight sum for avoiding monotorous
-        const auto bt = s1* 0.1f + s2 * 0.1f + s3 * 0.8f; // weight sum for avoiding monotorous
-
-        vert.color[0] = static_cast<unsigned char>(rt * 255.0f);
-        vert.color[1] = static_cast<unsigned char>(gt * 255.0f);
-        vert.color[2] = static_cast<unsigned char>(bt * 255.0f);
-    }
-
-    glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
-    glBufferSubData(GL_ARRAY_BUFFER, 0 , static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), gBackground.vertices.data()); // just sub? ****
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    // drawing with opengl
-    glViewport(0, 0, gWidth, gHeight); // param : (offset.x,offset.y,width,height) useful to set offset if game has two player and each has their own camera , feed latest-updated window sized so..
-    glClearColor(0.34f, 0.56f, 0.9f, 1.0f); // just 'set' window color
-    glClear(GL_COLOR_BUFFER_BIT);           // actually clear
-
-    // to feed to the uModel and uToNDC
-    //  2/w 0 0
-    //  0 2/h 0
-    //  0  0  1
-    std::array<float, 9> to_ndc{
-        2.0f / static_cast<float>(gWidth),
-        0.0f,
-        0.0f, // column 0
-        0.0f,
-        2.0f / static_cast<float>(gHeight),
-        0.0f, // column 1
-        0.0f,
-        0.0f,
-        1.0f // column 2
-    };
-
-    // write SRT in one matrix
-    // sx*cos  -sy*sin  px
-    // sx*sin   sy*cos  py
-    //   0        0     1
-
-    // draw background
-    auto                 cos_a = std::cos(gRotate); // input degree, output real value
-    auto                 sin_a = std::sin(gRotate);
-    std::array<float, 9> model{ 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
-
-
-    // drawing
-    glUseProgram(gShader.Shader);                                                          // ask gl to use shader, bind gShader to opengl
-    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first, ndc matrix has to be uniform because it doesn't change
-
-    glBindVertexArray(gBackground.vertexArrayObject);                                     // select background model
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
-    glDrawElements(GL_TRIANGLES, gBackground.indicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
-
-    // in shader there is uniformlocations so we can send uniform, and change by index,,check createshader!
-    glBindVertexArray(gVertexArrayObject); // select which model we want to draw - smily face model
-
-    for (const auto& obj : gObjects)
-    {
-        cos_a = std::cos(obj.Rotate);
-        sin_a = std::sin(obj.Rotate);
-        model = { obj.Scale[0] * cos_a, obj.Scale[0] * sin_a, 0.0f, -obj.Scale[1] * sin_a, obj.Scale[1] * cos_a, 0.0f, obj.Position[0], obj.Position[1], 1.0f };
-        glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
-        glDrawElements(
-            GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
-    }
-
-    cos_a = std::cos(gRotate);
-    sin_a = std::sin(gRotate);
-    model = { gScale[0] * cos_a, gScale[0] * sin_a, 0.0f, -gScale[1] * sin_a, gScale[1] * cos_a, 0.0f, gPosition[0], gPosition[1], 1.0f };
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data()); // bind matrices first
-    glDrawElements(
-        GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr); // drawing, param : (type of primitive model, how many indices, type of indices, offset(sometime need to draw part of this))
-
-    glUseProgram(0); // unselect
-    glBindVertexArray(0);
-
-    // after cleaning so imgui is at top
 
     [[maybe_unused]] const auto viewport = ImGuiHelper::Begin();
-
-    ImGui::Begin("2D Transform Control");
-    const float max_dim = static_cast<float>(std::max(gWidth, gHeight));
-
-    ImGui::SliderFloat2("Position", gPosition.data(), -max_dim, max_dim);
-    ImGui::SliderFloat2("Scale", gScale.data(), -max_dim, max_dim);
-    ImGui::SliderAngle("Rotation", &gRotate); // rotate changes in degree!
-
-    ImGui::End();
-
+    demo_imgui();
     ImGuiHelper::End();
 
-    // swap framebuffers - double buffer, so when drawing is done, now it's time to show on screen, painter metaphor..
+    // swap framebuffers
     SDL_GL_SwapWindow(gWindow);
-}
-
-void setup_background()
-{
-	std::vector<unsigned short> indices;
-
-	//create values of model
-	const int W = 100;
-	const int H = 100;
-	unsigned vertex_index = 0;
-	// unsigned indeces_index = 0;
-	for(int row = 0; row < H; ++row){
-		for(int column = 0;column < W; ++column){
-			constexpr float quad_size = 32;
-			Background::Vertex vert;
-
-			//bottom left
-			vert.pos[0] = static_cast<float>(column) * quad_size - static_cast<float>(W/2) * quad_size;
-			vert.pos[1] = static_cast<float>(row) * quad_size- static_cast<float>(H/2) * quad_size;
-			vert.color[0] = 255;
-			vert.color[1] = 0;
-			vert.color[2] = 0;
-			vert.color[3] = 255;
-			gBackground.vertices.push_back(vert);
-
-			//bottom right
-			vert.pos[0] = static_cast<float>(column + 1) * quad_size- static_cast<float>(W/2) * quad_size;
-			vert.pos[1] = static_cast<float>(row) * quad_size- static_cast<float>(H/2) * quad_size;
-			vert.color[0] = 0;
-			vert.color[1] = 255;
-			vert.color[2] = 0;
-			vert.color[3] = 255;
-			gBackground.vertices.push_back(vert);
-
-			//top right
-			vert.pos[0] = static_cast<float>(column + 1) * quad_size- static_cast<float>(W/2) * quad_size;
-			vert.pos[1] = static_cast<float>(row + 1) * quad_size- static_cast<float>(H/2) * quad_size;
-			vert.color[0] = 0;
-			vert.color[1] = 0;
-			vert.color[2] = 255;
-			vert.color[3] = 255;
-			gBackground.vertices.push_back(vert);
-
-			//top left
-			vert.pos[0] = static_cast<float>(column) * quad_size- static_cast<float>(W/2) * quad_size;
-			vert.pos[1] = static_cast<float>(row + 1) * quad_size- static_cast<float>(H/2) * quad_size;
-			vert.color[0] = 255;
-			vert.color[1] = 0;
-			vert.color[2] = 255;
-			vert.color[3] = 255;
-			gBackground.vertices.push_back(vert);
-
-			//make indices
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 0);
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 1);
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 2);
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 0);
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 2);
-			indices.push_back( static_cast<unsigned short>(vertex_index) + 3);
-
-			vertex_index += 4;
-			// indeces_index += 6;
-		}
-	}
-    gBackground.indicesCount = static_cast<GLsizei>( indices.size());
-	//now make buffer
-
-	glGenBuffers(1, &gBackground.vertexBuffer);
-	glGenBuffers(1, &gBackground.indexBuffer);
-	glGenVertexArrays(1, &gBackground.vertexArrayObject);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gBackground.indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(indices[0])), indices.data(), GL_STATIC_DRAW);//dont change
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), nullptr, GL_DYNAMIC_DRAW);//change, so we dont know what values vertices are, so it is common to put nullptr(not copy real data,but just for space) in there
-	glBufferSubData(GL_ARRAY_BUFFER, 0 , static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), gBackground.vertices.data()); //after make sure how big date is by glBufferData, change values with this func, put data, param_2nd : offset - we can handle just part of data
-	glBindBuffer(GL_ARRAY_BUFFER,0);
-
-	glBindVertexArray(gBackground.vertexArrayObject);
-	glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gBackground.indexBuffer);
-
-	glEnableVertexAttribArray(0);                                             // turn on location 0
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Background::Vertex), nullptr); // param : index(location), dimension(2d), type, should we normalize?(no, we hardcorded), stride: how many amount of jump
-                                                                              // do we need to go next data, location of the very first bytes to be read : 0, but it takes void* so..
-    glVertexAttribDivisor(0, 0); // called instancing..not now, param : index, how many instances of this mode need this value ; don't need this right now but use in assign
-
-    // describes our rgb color
-    glEnableVertexAttribArray(1);         // turn on location 1
-    ptrdiff_t offset = 2 * sizeof(float); // because {x,y,*r*,g,b} -> need 2 offset!
-    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Background::Vertex), reinterpret_cast<void*>(offset));
-    glVertexAttribDivisor(1, 0);
-
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
