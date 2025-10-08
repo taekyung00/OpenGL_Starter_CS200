@@ -109,7 +109,7 @@ void demo_setup()
 
     // texture create
     // load color values
-    const std::filesystem::path image_path = assets::locate_asset("Assets/robot.png");
+    const std::filesystem::path image_path = assets::locate_asset("Assets/Cat.png");
 
     // we may need to flip because of order of row of color
     const bool FLIP = true;
@@ -172,17 +172,39 @@ void demo_draw()
         1.0f // column 2
     };
 
-    const auto size =static_cast<float>( std::min(gWidth, gHeight));
-    std::array<float, 9> model{ size, 0.0f, 0.0f, 0.0f, size, 0.0f, 0.0f, 0.0f, 1.0f };
-    std::array<float, 9> texcoord_transform{ 63.f/315.f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };//to shrink tex_coord to just one frame
-    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());  // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniformMatrix3fv(gShader.UniformLocations.at("uTexCoordTransform"), 1, GL_FALSE, texcoord_transform.data());  // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniform4f(gShader.UniformLocations.at("uTint"),1.0f, 0.0f, 0.0f, 1.0f);
+    struct fvec2
+    {
+        float x;
+        float y;
+    };
+
+    fvec2 cat_image_size     = { 640.f, 256.f };
+    fvec2 cat_frame_size     = { 128.f, 128.f };
+    fvec2 cat_texel_position = { 0.f, 0.f };
+
+    const auto           size = static_cast<float>(std::min(cat_frame_size.x, cat_frame_size.y));
+    const fvec2 screen_size = {800.f, 600.f};
+    fvec2 go_to_bl = {-screen_size.x * 0.5f + cat_frame_size.x * 0.5f, -screen_size.y * 0.5f + cat_frame_size.y * 0.5f};
+    std::array<float, 9> model{ size, 0.0f, 0.0f, 0.0f, size, 0.0f, go_to_bl.x, go_to_bl.y, 1.0f };
+
+    
+    std::array<float, 9> texcoord_transform = { cat_frame_size.x / cat_image_size.x,
+                                                0.0f,
+                                                0.0f,
+                                                0.0f,
+                                                cat_frame_size.y / cat_image_size.y,
+                                                0.0f,
+                                                (cat_frame_size.x / cat_image_size.x) * (cat_texel_position.x / cat_frame_size.x),
+                                                (cat_frame_size.y / cat_image_size.y) * ((cat_image_size.y- (cat_texel_position.y + cat_frame_size.y))  / cat_frame_size.y),
+                                                1.0f };                                                            // to shrink tex_coord to just one frame
+    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());                         // bind matrices first, ndc matrix has to be uniform because it doesn't change
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());                          // bind matrices first, ndc matrix has to be uniform because it doesn't change
+    glUniformMatrix3fv(gShader.UniformLocations.at("uTexCoordTransform"), 1, GL_FALSE, texcoord_transform.data()); // bind matrices first, ndc matrix has to be uniform because it doesn't change
+    glUniform4f(gShader.UniformLocations.at("uTint"), 1.0f, 0.0f, 0.0f, 1.0f);
     glBindVertexArray(gVertexArrayObject);
-    //also use sampler, it is also uniform!!
-    glActiveTexture(0); // which texture slot you want to use, 0 is first
-    glBindTexture(GL_TEXTURE_2D, gDuckTexture);//now activated, so we put real texture
+    // also use sampler, it is also uniform!!
+    glActiveTexture(0);                         // which texture slot you want to use, 0 is first
+    glBindTexture(GL_TEXTURE_2D, gDuckTexture); // now activated, so we put real texture
     glDrawElements(GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr);
 
     glBindTexture(GL_TEXTURE_2D, 0);
