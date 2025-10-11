@@ -23,7 +23,7 @@ OpenGL::Handle         gIndexBuffer;
 // collect all together
 OpenGL::Handle         gVertexArrayObject; // handle to our model data , everything that the model needs
 GLsizei                gIndicesCount = 0;
-
+OpenGL::Handle         gDuckTexture  = 0;
 //make helper func. to change scale and rot to fit primitives
 float gScaleX = 128.f;
 float gScaleY = 128.f;
