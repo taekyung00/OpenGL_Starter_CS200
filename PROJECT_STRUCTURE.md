@@ -14,6 +14,7 @@ Based on git history analysis, this project shows a clear weekly progression pat
 ## Architectural Organization
 
 ### Core Directory Structure
+
 ```
 opengl_starter/
 ├── source/           # Core application code
@@ -27,6 +28,7 @@ opengl_starter/
 ### Source Code Architecture (`source/`)
 
 #### Core Application (`main.cpp`)
+
 - Single-file application approach with global state management
 - SDL2/OpenGL initialization and main game loop
 - Hardcoded smiley face geometry with vertex/index buffers
@@ -35,32 +37,38 @@ opengl_starter/
 - ImGui integration for real-time parameter control
 
 #### Graphics Utilities
+
 - **`Shader.hpp/cpp`**: OpenGL shader compilation and uniform management
 - **`Handle.hpp`**: Simple type alias for OpenGL resource handles (`using Handle = unsigned`)
 - **`ImGuiHelper.hpp/cpp`**: Dear ImGui SDL2/OpenGL backend integration
 
 #### Utility Systems
+
 - **`Random.hpp/cpp`**: Random number generation utilities (added Week 3)
 
 ### Asset Organization
 
 #### Shaders (`Assets/shaders/`)
+
 - **`basic.vert`**: Simple vertex shader (position pass-through)
 - **`basic.frag`**: Fragment shader with uniform color support
 - **Note**: Current main.cpp uses embedded shaders, not these files
 
 #### Platform Resources (`app_resources/`)
+
 - **`web/index_shell.html`**: Emscripten HTML template for web builds
 - **`windows/icon.ico`**: Windows executable icon
 
 ### Build System Architecture (`cmake/`)
 
 #### Dependency Management
+
 - **`Dependencies.cmake`**: Central dependency coordinator
 - **`dependencies/`**: Individual library configurations
   - OpenGL, SDL2, GLEW, Dear ImGui, GSL (Guidelines Support Library)
 
 #### Build Configuration
+
 - **`CMakePresets.json`**: Multi-platform build presets (Windows/Linux/Web)
 - **`StandardProjectSettings.cmake`**: C++20 standards and project settings
 - **`CompilerWarnings.cmake`**: Comprehensive warning configurations
@@ -68,18 +76,21 @@ opengl_starter/
 ## Programming Patterns & Evolution
 
 ### Week 2 → Week 3 Major Changes
+
 1. **Component Addition**: Random utilities and ImGui integration
 2. **Architectural Shift**: From simple static geometry to dynamic animated background
 3. **Code Organization**: Better separation with utility classes
 4. **Rendering Pipeline**: Dual rendering system (background + foreground objects)
 
 ### Key Design Patterns
+
 1. **Global State Management**: All major objects as global variables
 2. **Resource Management**: OpenGL Handle abstraction for GPU resources
 3. **Platform Abstraction**: Conditional compilation for desktop vs web
 4. **Matrix Mathematics**: Column-major 3x3 matrices for 2D transformations
 
 ### Graphics Pipeline Structure
+
 ```
 Vertex Data → Vertex Buffer → Vertex Array Object → Shader Program → Rendering
      ↓              ↓              ↓                    ↓             ↓
@@ -90,11 +101,13 @@ Vertex Data → Vertex Buffer → Vertex Array Object → Shader Program → Ren
 ## Technical Characteristics
 
 ### Cross-Platform Strategy
+
 - Native desktop builds using OpenGL Core Profile
 - Web builds via Emscripten targeting WebGL 2.0
 - Platform-specific optimizations in CMake configuration
 
 ### Graphics Features Implemented
+
 - Vertex Array Objects (VAOs) for geometry organization
 - Dynamic vertex buffer updates for animation
 - Matrix-based transformations with uniform shader parameters
@@ -102,6 +115,7 @@ Vertex Data → Vertex Buffer → Vertex Array Object → Shader Program → Ren
 - Real-time parameter control via ImGui interface
 
 ### Development Workflow
+
 - Branch-per-week development pattern (`week2`, `week3`, `week4`)
 - Incremental feature additions with frequent small commits
 - Questions tracking for learning (`Questions - CS200.md`)
@@ -109,6 +123,7 @@ Vertex Data → Vertex Buffer → Vertex Array Object → Shader Program → Ren
 ## File Structure Details
 
 ### Complete Directory Tree
+
 ```
 opengl_starter/
 ├── Assets/
@@ -153,6 +168,7 @@ opengl_starter/
 This structure demonstrates a typical computer graphics coursework progression, building from basic OpenGL setup to animated scenes with proper abstractions and cross-platform support. The project uses modern C++20 features, comprehensive build system configuration, and follows educational best practices for graphics programming learning.
 
 ### Key Learning Areas Covered
+
 - OpenGL resource management and RAII patterns
 - Shader compilation and uniform parameter binding
 - Vertex buffer management and rendering pipelines
