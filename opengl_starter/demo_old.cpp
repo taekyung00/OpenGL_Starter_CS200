@@ -1,8 +1,3 @@
-//completed_sdf_and_start_framebuffers
-//make quad that fits to primitive(rect, circle, ...)
-//and use another shader(SDF) to draw primitive directly
-//and use transform matrix
-
 #include "Path.hpp"
 #include "Random.hpp"
 #include "Shader.hpp"
