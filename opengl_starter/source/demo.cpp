@@ -3,6 +3,19 @@
 // and use another shader(SDF) to draw primitive directly
 // and use transform matrix
 
+// use paint.net to check real size
+
+
+// offscreen framebuffers
+// make offscreen framebuffers
+// doesn't have to be equal to screensize -> arbitrary size
+// like font
+// just make small frame buffer -> make a texture
+//"fun" > make a texture(a single quad)
+
+// ex. post-processing effects
+// change all of colors of scene (ex. chromatic aberration effect)
+
 #include "Path.hpp"
 #include "Random.hpp"
 #include "Shader.hpp"
@@ -10,6 +23,7 @@
 #include <SDL.h>
 #include <array> //feed array to vertex shader, and vertex shader do NDC
 #include <imgui.h>
+#include <iostream>
 #include <stb_image.h>
 #include <vector>
 
@@ -35,39 +49,64 @@ float                gLineWidth  = 8.f;
 std::array<float, 4> gFillColor  = { 1.f, 0.f, 0.f, 1.f };
 std::array<float, 4> gLineColor  = { 0.f, 0.f, 0.f, 1.f };
 
+[[maybe_unused]]OpenGL::Handle gOffscreenFramebuffer = 0;
+[[maybe_unused]]OpenGL::Handle gOffscreenTexture     = 0;
+
+[[maybe_unused]]const int gFrameWidth  = 256;
+[[maybe_unused]]const int gFrameHeight = 256;
+
 void demo_setup()
 {
     const std::filesystem::path vertex_file   = assets::locate_asset("Assets/shaders/sdf.vert");
     const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/sdf.frag");
     gShader                                   = OpenGL::CreateShader(vertex_file, fragment_file);
 
-    // vertex buffer that has 2D position adn some "texture coordinates"
+    glGenTextures(1, &gOffscreenTexture);
+    glBindTexture(GL_TEXTURE_2D, gOffscreenTexture);
+    // filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // Wrapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // GL_CLAMP_TO_EDGE,
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // GL_MIRRORED_REPEAT
+
+
+#ifdef IS_WEBGL2
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, gFrameWidth, gFrameHeight); // level means "how many!!"
+#else
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gFrameWidth, gFrameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+#endif
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenFramebuffers(1, &gOffscreenFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gOffscreenFramebuffer);
+    // default framebuffer is zero(handle..?)
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gOffscreenTexture, 0); // so all of things we draw in fbo is saved in gOffscreenTexture// attatchment can be color of stencil or depth, we pick first color
+    [[maybe_unused]]constexpr GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 };                                        // if we want multiple color buffers, we can match up
+    glDrawBuffers(1, draw_buffers); //apply above settings
+    const auto status_result = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status_result != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cerr << "Failed to create usable framebuffer :(\n";
+
+        std::exit(-1); // don't do that..
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     struct vertex
     {
         float x;
-        float y;//shader does color things, so we don't need texture coord anymore
+        float y; // shader does color things, so we don't need texture coord anymore
     };
 
     // just quad
     const vertex vertices[] = {
         // with s,t(texture space, texture coordinate)
-        {
-         -0.5,
-         -0.5
-         }, //  bottom left
-        {
-         +0.5,
-         -0.5
-         }, //  bottom right
-        {
-         +0.5,
-         +0.5
-         }, //  top right
-        {
-         -0.5,
-         +0.5
-         }  //  top left
+        { -0.5, -0.5 }, //  bottom left
+        { +0.5, -0.5 }, //  bottom right
+        { +0.5, +0.5 }, //  top right
+        { -0.5, +0.5 }  //  top left
     };
 
     // Triangle indices
@@ -111,7 +150,10 @@ void demo_setup()
     glBindBuffer(GL_ARRAY_BUFFER, 0); //**already unbind??
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
+
 // Type aliases for OpenGL-compatible data formats
 using mat3 = std::array<float, 9>; ///< 3x3 matrix in column-major order for OpenGL
 using vec2 = std::array<float, 2>; ///< 2D vector for OpenGL uniform uploads
@@ -134,11 +176,11 @@ SDFTransform CalculateSDFTransform(const mat3& transform, float line_width) noex
     const auto  b = transform[mat3_index(0, 1)];
     const auto  c = transform[mat3_index(1, 0)];
     const auto  d = transform[mat3_index(1, 1)];
-    const vec2  world_size{ (std::sqrt(a * a + c * c)), (std::sqrt(b * b + d * d)) }; //rot and scale
+    const vec2  world_size{ (std::sqrt(a * a + c * c)), (std::sqrt(b * b + d * d)) }; // rot and scale
     const float line_width_addition = std::max((line_width), 0.0f);
     const vec2  quad_size           = { world_size[0] + line_width_addition, world_size[1] + line_width_addition };
 
-    const vec2 scale_up       = { quad_size[0] / world_size[0], quad_size[1] / world_size[1] }; //take the ratio of (world+line) / world
+    const vec2 scale_up       = { quad_size[0] / world_size[0], quad_size[1] / world_size[1] }; // take the ratio of (world+line) / world
     mat3       quad_transform = transform;
     quad_transform[0] *= scale_up[0];
     quad_transform[1] *= scale_up[0];
@@ -148,9 +190,9 @@ SDFTransform CalculateSDFTransform(const mat3& transform, float line_width) noex
 }
 
 // Helper function to create a transformation matrix from scale, rotation, and translation
-mat3 CreateTransformMatrix(float scale_x, float scale_y, float rotation_degrees, float translate_x, float translate_y)
+mat3 CreateTransformMatrix(float scale_x, float scale_y, float rotation_radians, float translate_x, float translate_y)
 {
-    const float rad   = rotation_degrees * 3.14159265f / 180.0f;
+    const float rad   = rotation_radians;
     const float cos_r = std::cos(rad);
     const float sin_r = std::sin(rad);
 
@@ -171,43 +213,57 @@ mat3 CreateTransformMatrix(float scale_x, float scale_y, float rotation_degrees,
 
 void demo_draw()
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, gOffscreenFramebuffer);
     glClearColor(0.34f, 0.56f, 0.9f, 1.0f); // just 'set' window color
     glClear(GL_COLOR_BUFFER_BIT);           // actually clear
+
+    // have to update viewport because our offscreenbuffer is not window size
+    glViewport(0, 0, gFrameWidth, gFrameHeight);
 
     glUseProgram(gShader.Shader);
 
     std::array<float, 9> to_ndc{
-        2.0f / static_cast<float>(gWidth),
+        2.0f / static_cast<float>(gFrameWidth),
         0.0f,
         0.0f, // column 0
         0.0f,
-        2.0f / static_cast<float>(gHeight),
+        2.0f / static_cast<float>(gFrameHeight),
         0.0f, // column 1
         0.0f,
         0.0f,
         1.0f // column 2
     };
 
-    const auto           size = static_cast<float>(std::min(gWidth, gHeight));
-    std::array<float, 9> model = CreateTransformMatrix(gScaleX,gScaleY,gRotation, gTranslateX,gTranslateY);
+    // std::array<float, 9> to_ndc{
+    //     2.0f / static_cast<float>(gWidth),
+    //     0.0f,
+    //     0.0f, // column 0
+    //     0.0f,
+    //     2.0f / static_cast<float>(gHeight),
+    //     0.0f, // column 1
+    //     0.0f,
+    //     0.0f,
+    //     1.0f // column 2
+    // };
 
-    const auto sdf_transform = CalculateSDFTransform(model,gLineWidth);
+    // const auto           size  = static_cast<float>(std::min(gWidth, gHeight));
+    std::array<float, 9> model = CreateTransformMatrix(gScaleX, gScaleY, gRotation, gTranslateX, gTranslateY);
 
-    //vertex shader
-    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());                      
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, sdf_transform.QuadTransform.data()); // use modified one!!            
-    //let shader know width and height of quad, and we will make bottom-left (-w/2, -h/2), t-r(w/2, h/2)
-    glUniform2f(gShader.UniformLocations.at("uSDFScale"), sdf_transform.QuadSize[0], sdf_transform.QuadSize[1]); //multiply this to position(-0.5 ~ 0.5 already)
+    const auto sdf_transform = CalculateSDFTransform(model, gLineWidth);
 
-    //frag shader(feed all things to shader)
+    // vertex shader
+    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, sdf_transform.QuadTransform.data()); // use modified one!!
+    // let shader know width and height of quad, and we will make bottom-left (-w/2, -h/2), t-r(w/2, h/2)
+    glUniform2f(gShader.UniformLocations.at("uSDFScale"), sdf_transform.QuadSize[0], sdf_transform.QuadSize[1]); // multiply this to position(-0.5 ~ 0.5 already)
+
+    // frag shader(feed all things to shader)
     glUniform4fv(gShader.UniformLocations.at("uFillColor"), 1, gFillColor.data());
     glUniform4fv(gShader.UniformLocations.at("uLineColor"), 1, gLineColor.data());
     glUniform2fv(gShader.UniformLocations.at("uWorldSize"), 1, sdf_transform.WorldSize.data());
     glUniform1f(gShader.UniformLocations.at("uLineWidth"), gLineWidth);
     glUniform1i(gShader.UniformLocations.at("uShape"), gShape);
 
-    // glUniformMatrix3fv(gShader.UniformLocations.at("uTexCoordTransform"), 1, GL_FALSE, texcoord_transform.data()); 
-    // glUniform4f(gShader.UniformLocations.at("uTint"), 1.0f, 0.0f, 0.0f, 1.0f);
     glBindVertexArray(gVertexArrayObject);
 
     glDrawElements(GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr);
@@ -215,10 +271,36 @@ void demo_draw()
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindVertexArray(0);
     glUseProgram(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);   // 0 means original one
+    glClearColor(0.34f, 0.56f, 0.9f, 1.0f); // just 'set' window color
+    glClear(GL_COLOR_BUFFER_BIT);           // actually clear
+    glViewport(0, 0, gWidth, gHeight);
+
+    // draw a quad using ths gOffscreentexture -> in imgui
+    // fbo에 그려진걸 텍스쳐로 보냈을뿐, 아직 실제로 그려진 것은 아님
 }
 
 void demo_imgui()
 {
     ImGui::Begin("Demo Settings");
+
+    ImGui::SliderFloat("ScaleX", &gScaleX, 0.1f, 1000.f);
+    ImGui::SliderFloat("ScaleY", &gScaleY, 0.1f, 1000.f);
+    ImGui::SliderFloat("TranslateX", &gTranslateX, -1000.f, 1000.f);
+    ImGui::SliderFloat("TranslateY", &gTranslateY, -1000.f, 1000.f);
+    ImGui::SliderAngle("Rotation", &gRotation);
+
+    ImGui::RadioButton("Circle", &gShape, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Rectangle", &gShape, 1);
+
+    ImGui::SliderFloat("Line Width", &gLineWidth, 0.5f, 100.f);
+
+    ImGui::ColorEdit4("Fill Color", gFillColor.data());
+    ImGui::ColorEdit4("Line Color", gLineColor.data());
+
+    ImGui::SeparatorText("Generated Texture");
+    ImGui::Image(static_cast<ImTextureRef>(gOffscreenTexture), ImVec2(gFrameWidth, gFrameHeight));
     ImGui::End();
 }
