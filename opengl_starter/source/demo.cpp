@@ -1,7 +1,7 @@
-//completed_sdf_and_start_framebuffers
-//make quad that fits to primitive(rect, circle, ...)
-//and use another shader(SDF) to draw primitive directly
-//and use transform matrix
+// completed_sdf_and_start_framebuffers
+// make quad that fits to primitive(rect, circle, ...)
+// and use another shader(SDF) to draw primitive directly
+// and use transform matrix
 
 #include "Path.hpp"
 #include "Random.hpp"
@@ -23,18 +23,22 @@ OpenGL::Handle         gIndexBuffer;
 // collect all together
 OpenGL::Handle         gVertexArrayObject; // handle to our model data , everything that the model needs
 GLsizei                gIndicesCount = 0;
-OpenGL::Handle         gDuckTexture  = 0;
-//make helper func. to change scale and rot to fit primitives
-float gScaleX = 128.f;
-float gScaleY = 128.f;
-float gRotation = 0.f;
-float gTranslateX = 0.f;
-float gTranslateY = 0.f;
+
+// make helper func. to change scale and rot to fit primitives
+float                gScaleX     = 128.f;
+float                gScaleY     = 128.f;
+float                gRotation   = 0.f;
+float                gTranslateX = 0.f;
+float                gTranslateY = 0.f;
+int                  gShape      = 0; // 0 is circle, 1 is rect
+float                gLineWidth  = 8.f;
+std::array<float, 4> gFillColor  = { 1.f, 0.f, 0.f, 1.f };
+std::array<float, 4> gLineColor  = { 0.f, 0.f, 0.f, 1.f };
 
 void demo_setup()
 {
-    const std::filesystem::path vertex_file   = assets::locate_asset("Assets/shaders/basic.vert");
-    const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/basic.frag");
+    const std::filesystem::path vertex_file   = assets::locate_asset("Assets/shaders/sdf.vert");
+    const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/sdf.frag");
     gShader                                   = OpenGL::CreateShader(vertex_file, fragment_file);
 
     // vertex buffer that has 2D position adn some "texture coordinates"
@@ -42,9 +46,7 @@ void demo_setup()
     struct vertex
     {
         float x;
-        float y;
-        float s;
-        float t;
+        float y;//shader does color things, so we don't need texture coord anymore
     };
 
     // just quad
@@ -52,23 +54,19 @@ void demo_setup()
         // with s,t(texture space, texture coordinate)
         {
          -0.5,
-         -0.5,
-         0, 0,
+         -0.5
          }, //  bottom left
         {
          +0.5,
-         -0.5,
-         1, 0,
+         -0.5
          }, //  bottom right
         {
          +0.5,
-         +0.5,
-         1, 1,
+         +0.5
          }, //  top right
         {
          -0.5,
-         +0.5,
-         0, 1,
+         +0.5
          }  //  top left
     };
 
@@ -107,61 +105,68 @@ void demo_setup()
                                                                               // do we need to go next data, location of the very first bytes to be read : 0, but it takes void* so..
     glVertexAttribDivisor(0, 0); // called instancing..not now, param : index, how many instances of this mode need this value ; don't need this right now but use in assign
 
-    // describes our rgb color
-    glEnableVertexAttribArray(1);                                                                     // turn on location 1
-    ptrdiff_t offset = 2 * sizeof(float);                                                             // because {x,y,*r*,g,b} -> need 2 offset!
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), reinterpret_cast<void*>(offset)); // now we need just 2
-    glVertexAttribDivisor(1, 0);
 
     // un-select VAO&buffers, unbind
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0); //**already unbind??
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    // texture create
-    // load color values
-    const std::filesystem::path image_path = assets::locate_asset("Assets/robot.png");
+}
+// Type aliases for OpenGL-compatible data formats
+using mat3 = std::array<float, 9>; ///< 3x3 matrix in column-major order for OpenGL
+using vec2 = std::array<float, 2>; ///< 2D vector for OpenGL uniform uploads
 
-    // we may need to flip because of order of row of color
-    const bool FLIP = true;
-    stbi_set_flip_vertically_on_load(FLIP);
+struct SDFTransform
+{
+    mat3 QuadTransform; ///< OpenGL transformation matrix for the rendering quad
+    vec2 WorldSize;     ///< Original shape size in world coordinates
+    vec2 QuadSize;      ///< Expanded quad size including line width padding
+};
 
-    int           w = 0, h = 0;
-    constexpr int num_channels       = 4;                                                                                 // rgba
-    int           files_num_channels = 0;                                                                                 // to here
-    const auto    image_bytes        = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels); // loading, use dynamic memory so we need free
+SDFTransform CalculateSDFTransform(const mat3& transform, float line_width) noexcept
+{
+    constexpr int  mat3_width = 3;
+    constexpr auto mat3_index = [](int row, int col)
+    {
+        return col * mat3_width + row;
+    };
+    const auto  a = transform[mat3_index(0, 0)];
+    const auto  b = transform[mat3_index(0, 1)];
+    const auto  c = transform[mat3_index(1, 0)];
+    const auto  d = transform[mat3_index(1, 1)];
+    const vec2  world_size{ (std::sqrt(a * a + c * c)), (std::sqrt(b * b + d * d)) }; //rot and scale
+    const float line_width_addition = std::max((line_width), 0.0f);
+    const vec2  quad_size           = { world_size[0] + line_width_addition, world_size[1] + line_width_addition };
 
-    // copy the color values to the GPU as a texture
+    const vec2 scale_up       = { quad_size[0] / world_size[0], quad_size[1] / world_size[1] }; //take the ratio of (world+line) / world
+    mat3       quad_transform = transform;
+    quad_transform[0] *= scale_up[0];
+    quad_transform[1] *= scale_up[0];
+    quad_transform[3] *= scale_up[1];
+    quad_transform[4] *= scale_up[1];
+    return { quad_transform, world_size, quad_size };
+}
 
+// Helper function to create a transformation matrix from scale, rotation, and translation
+mat3 CreateTransformMatrix(float scale_x, float scale_y, float rotation_degrees, float translate_x, float translate_y)
+{
+    const float rad   = rotation_degrees * 3.14159265f / 180.0f;
+    const float cos_r = std::cos(rad);
+    const float sin_r = std::sin(rad);
 
-    glGenTextures(1, &gDuckTexture);
-    glBindTexture(GL_TEXTURE_2D, gDuckTexture);
-
-    // properties
-    //- how it's filtered : go to nearest pixel / linear and blur
-    //- how handle outside of 0..1 : wrapping / clamp
-    //- mip mapping(useful to 3D graphics) : a way to have smaller versions of texture
-    //-> if 3D is really far away.., and we just need color of it, we dont need high res source image
-    // so we use low res image
-
-    // filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // param2 : minifying the image filtering , param3 : we can gl_linear
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // param2 : magnifying the image filtering
-
-    // wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // GL_CLAMP_TO_EDGE/GL_MIRRORED_REPEAT
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // GL_CLAMP_TO_EDGE/GL_MIRRORED_REPEAT
-
-    // actually feed image_bytes to OpenGL
-    constexpr int base_mipmap_level = 0; // just bare level, we don't care
-    constexpr int zero_border       = 0;
-    glTexImage2D(GL_TEXTURE_2D, base_mipmap_level, GL_RGBA8, w, h, zero_border, GL_RGBA, GL_UNSIGNED_BYTE, image_bytes); // feed
-    // unload,free
-    stbi_image_free(image_bytes);    // free first, cause we don't need it
-    glBindTexture(GL_TEXTURE_2D, 0); // we got color from texture, so we don't need it anymore
-
-
-    // and we can draw in draw func..
+    // Create combined scale, rotation, and translation matrix
+    // Column-major order for OpenGL
+    return mat3{
+        scale_x * cos_r,  // m00
+        scale_x * sin_r,  // m10
+        0.0f,             // m20
+        -scale_y * sin_r, // m01
+        scale_y * cos_r,  // m11
+        0.0f,             // m21
+        translate_x,      // m02
+        translate_y,      // m12
+        1.0f              // m22
+    };
 }
 
 void demo_draw()
@@ -183,17 +188,28 @@ void demo_draw()
         1.0f // column 2
     };
 
-    const auto size =static_cast<float>( std::min(gWidth, gHeight));
-    std::array<float, 9> model{ size, 0.0f, 0.0f, 0.0f, size, 0.0f, 0.0f, 0.0f, 1.0f };
-    std::array<float, 9> texcoord_transform{ 63.f/315.f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };//to shrink tex_coord to just one frame
-    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data()); // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());  // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniformMatrix3fv(gShader.UniformLocations.at("uTexCoordTransform"), 1, GL_FALSE, texcoord_transform.data());  // bind matrices first, ndc matrix has to be uniform because it doesn't change
-    glUniform4f(gShader.UniformLocations.at("uTint"),1.0f, 0.0f, 0.0f, 1.0f);
+    const auto           size = static_cast<float>(std::min(gWidth, gHeight));
+    std::array<float, 9> model = CreateTransformMatrix(gScaleX,gScaleY,gRotation, gTranslateX,gTranslateY);
+
+    const auto sdf_transform = CalculateSDFTransform(model,gLineWidth);
+
+    //vertex shader
+    glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());                      
+    glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, sdf_transform.QuadTransform.data()); // use modified one!!            
+    //let shader know width and height of quad, and we will make bottom-left (-w/2, -h/2), t-r(w/2, h/2)
+    glUniform2f(gShader.UniformLocations.at("uSDFScale"), sdf_transform.QuadSize[0], sdf_transform.QuadSize[1]); //multiply this to position(-0.5 ~ 0.5 already)
+
+    //frag shader(feed all things to shader)
+    glUniform4fv(gShader.UniformLocations.at("uFillColor"), 1, gFillColor.data());
+    glUniform4fv(gShader.UniformLocations.at("uLineColor"), 1, gLineColor.data());
+    glUniform2fv(gShader.UniformLocations.at("uWorldSize"), 1, sdf_transform.WorldSize.data());
+    glUniform1f(gShader.UniformLocations.at("uLineWidth"), gLineWidth);
+    glUniform1i(gShader.UniformLocations.at("uShape"), gShape);
+
+    // glUniformMatrix3fv(gShader.UniformLocations.at("uTexCoordTransform"), 1, GL_FALSE, texcoord_transform.data()); 
+    // glUniform4f(gShader.UniformLocations.at("uTint"), 1.0f, 0.0f, 0.0f, 1.0f);
     glBindVertexArray(gVertexArrayObject);
-    //also use sampler, it is also uniform!!
-    glActiveTexture(0); // which texture slot you want to use, 0 is first
-    glBindTexture(GL_TEXTURE_2D, gDuckTexture);//now activated, so we put real texture
+
     glDrawElements(GL_TRIANGLES, gIndicesCount, GL_UNSIGNED_SHORT, nullptr);
 
     glBindTexture(GL_TEXTURE_2D, 0);
