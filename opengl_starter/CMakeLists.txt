@@ -14,7 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #     message(STATUS "${_variableName}=${${_variableName}}")
 # endforeach()
 
-project(cs200_HW1)
+project(cs200_OpenGL_Starter)
 
 include(cmake/StandardProjectSettings.cmake)
 
