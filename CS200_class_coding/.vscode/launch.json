@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Web Debug Launch Edge",
+            "request": "launch",
+            "type": "msedge",
+            "url": "http://localhost:3000/build/web-debug/${command:cmake.launchTargetFilename}",
+            "webRoot": "${workspaceFolder}/build/web-debug",
+            "windows": {
+                "url": "http://localhost:3000/build/web-debug-on-windows/${command:cmake.launchTargetFilename}"
+            }
+        },
+        {
+            "name": "Web Debug Launch Chrome",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000/build/web-debug/${command:cmake.launchTargetFilename}",
+            "webRoot": "${workspaceFolder}/build/web-debug",
+            "windows": {
+                "url": "http://localhost:3000/build/web-debug-on-windows/${command:cmake.launchTargetFilename}"
+            }
+        }
+    ]
+}
