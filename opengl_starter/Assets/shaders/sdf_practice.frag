@@ -60,7 +60,7 @@ void main() {
 //     vec2 distance_to_edges = abs(uv) - half_dim; //use abs so we can focus 1st quad
 //     float outside_distance = length(max(distance_to_edges, 0.0)); //scalar 0.0 is extended to vec2, 0.0,0.0//x > 0 or y > 0 -> outside!
 //     //max(vec2 v1, vec2 v2) -> return vec2(max(v1.x, v2.x), max(v1.y, v2.y)) 
-//     float inside_distance = min(max(distance_to_edges.x, distance_to_edges.y)/*shorter distance*/, 0.0/*works only negative*/);
+//     float inside_distance = min(max(distance_to_edges.x, distance_to_edges.y)/*shorter distance(have small abs value)*/, 0.0/*works only negative*/);
 //     float sdf = outside_distance + inside_distance;
 //     vec4 fill_color  = sdf > 0.f ?  vec4(0.5333, 0.8549, 0.5333, 1.0) : vec4(0.7451, 0.1098, 0.7804, 1.0);
 //     float line_thickness = 20.0;
