@@ -9,10 +9,12 @@ precision mediump float;
  * \copyright DigiPen Institute of Technology
  */
 
+//every GPU have different amount limit of texture
+//have to ask to OpenGL
 uniform sampler2D uTexture;
 
 in vec2 vTexCoord;
-flat in vec2 vTint;
+flat in vec4 vTint;
 
 layout(location = 0) out vec4 FragColor;
 

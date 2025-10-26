@@ -1,4 +1,5 @@
 #include "BatchRenderer2D.hpp"
+
 #include "Path.hpp"
 
 BatchRenderer2D::BatchRenderer2D(unsigned max_quads)
@@ -38,6 +39,7 @@ void BatchRenderer2D::Init()
 		indice_values[i + 3] = offset + 2;
 		indice_values[i + 4] = offset + 3;
 		indice_values[i + 5] = offset + 0;
+		offset += 4;
 	}
 
 	glGenBuffers(1, &indexBuffer);
@@ -49,7 +51,7 @@ void BatchRenderer2D::Init()
 	glGenVertexArrays(1, &vertexArrayObject);
 	glBindVertexArray(vertexArrayObject);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 
 	// Position attribute (location 0)
 	glEnableVertexAttribArray(0);
@@ -75,9 +77,9 @@ void BatchRenderer2D::Init()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	// Enable blending for transparency
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glDisable(GL_DEPTH_TEST);
 }
 
 void BatchRenderer2D::Shutdown()
@@ -102,8 +104,100 @@ void BatchRenderer2D::EndScene()
 	flush();
 }
 
+namespace
+{
+	std::array<unsigned char, 4> pack_color(const std::span<const float, 4>& rgba)
+	{
+		unsigned char r = static_cast<unsigned char>(rgba[0] * 255.0f);
+		unsigned char g = static_cast<unsigned char>(rgba[1] * 255.0f);
+		unsigned char b = static_cast<unsigned char>(rgba[2] * 255.0f);
+		unsigned char a = static_cast<unsigned char>(rgba[3] * 255.0f);
+		return std::array<unsigned char, 4>{ r, g, b, a };
+	}
+}
+
+void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
+{
+	if (indexCount + 6 > maxIndices)
+	{
+		flush();
+	}
+
+	theTexture = texture;
+
+	// Convert texture_coords_lbrt (left, bottom, right, top) to texture coordinate transform matrix
+	const float left   = texture_coords_lbrt[0];
+	const float bottom = texture_coords_lbrt[1];
+	const float right  = texture_coords_lbrt[2];
+	const float top	   = texture_coords_lbrt[3];
+
+	const std::array<float, 2> texture_coords[4] = {
+		{  left, bottom }, //  bottom left
+		{ right, bottom }, //  bottom right
+		{ right,	 top }, //  top right
+		{  left,	top }  //  top left
+	};
+
+	// we don't have to make texcoord_transform matrix, just use 4 texture coords right away!
+
+	const std::array<unsigned char, 4> tint = pack_color(tint_color);
+
+	constexpr std::array<float, 2> model_positions[4] = {
+		{ -0.5, -0.5 }, //  bottom left
+		{ +0.5, -0.5 }, //  bottom right
+		{ +0.5, +0.5 }, //  top right
+		{ -0.5, +0.5 }	//  top left
+	};
+
+
+	for (unsigned i = 0; i < 4; ++i) // i is for 4 vertex(bottom/top - right/left)
+	{
+		// matrix multiply manually (3by 3, transform matrix) * (3 by 1, position matrix) => model to world!
+		const float x = model_positions[i][0] /*bottom_left->left(x)*/ * transform[0] + model_positions[i][1] /*bottom_left->bottom(y)*/ * transform[3] + transform[6];
+		const float y = model_positions[i][0] * transform[1] + model_positions[i][1] * transform[4] + transform[7];
+
+		vertexDataEnd->x	= x;
+		vertexDataEnd->y	= y;
+		vertexDataEnd->s	= texture_coords[i][0];
+		vertexDataEnd->t	= texture_coords[i][1];
+		vertexDataEnd->tint = tint;
+
+		++vertexDataEnd;
+	}
+	indexCount += 6;
+}
+
 void BatchRenderer2D::startBatch()
 {
 	vertexDataEnd = vertexData.data();
 	indexCount	  = 0;
+}
+
+void BatchRenderer2D::flush()
+{
+	if (indexCount == 0)
+		return;
+
+	// upload our vertices(vertex buffer is dynamic)
+	const auto vertex_count = vertexDataEnd - vertexData.data(); // pointer subtraction returns amount of element!
+	const auto size_bytes	= vertex_count * sizeof(QuadVertex);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, size_bytes, vertexData.data());
+
+	// select our texture
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, theTexture);
+
+	// draw
+	glUseProgram(shader.Shader);
+	glBindVertexArray(vertexArrayObject);
+	glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount), GL_UNSIGNED_INT, nullptr);
+
+	// unbind stuff
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	startBatch(); // reset
 }

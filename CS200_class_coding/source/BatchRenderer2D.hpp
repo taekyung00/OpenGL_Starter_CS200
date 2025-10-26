@@ -47,6 +47,8 @@ private:
 	QuadVertex* vertexDataEnd = nullptr; // pointing where we are
 	unsigned	indexCount	  = 0;
 
+	OpenGL::Handle theTexture = 0;
+
 private:
 	void flush(); // when quad amount is reached to max_quad
 	void startBatch();

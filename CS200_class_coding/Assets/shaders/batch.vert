@@ -16,7 +16,7 @@ out vec2 vTexCoord;
 //by default, any output variable interpolated
 //but vTint has to be same across the triangle(for each pixels)
 //so put flat
-flat out vec2 vTint;
+flat out vec4 vTint;
 
 // uniform mat3 uModel; //get rid of it so that cpu do this 
 uniform mat3 uToNDC;
