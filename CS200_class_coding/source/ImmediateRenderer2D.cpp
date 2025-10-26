@@ -9,6 +9,7 @@
 #include "Path.hpp"
 #include <GL/glew.h>
 #include <array>
+#include "BatchRenderer2D.hpp"
 
 void ImmediateRenderer2D::Init()
 {
@@ -87,6 +88,8 @@ void ImmediateRenderer2D::Shutdown()
     glDeleteBuffers(1, &index_buffer);
     glDeleteProgram(shader.Shader);
 }
+
+
 
 void ImmediateRenderer2D::BeginScene(std::span<const float, 9> ndc_matrix)
 {

@@ -12,6 +12,11 @@
 #include <array>
 #include <vector>
 
+/**
+* 
+* basic idea - either buffer is full(reached max_quads) or user invoked endscene-> draw one time
+*/
+
 class BatchRenderer2D : public IRenderer2D
 {
 public:
