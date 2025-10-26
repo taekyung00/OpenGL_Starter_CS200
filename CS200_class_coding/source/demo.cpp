@@ -29,7 +29,7 @@ extern "C"
 GPU_EXPORT unsigned long NvOptimusEnablement = 0x00000001;
 
 // AMD PowerXpress: Request high-performance GPU
-GPU_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
+GPU_EXPORT int AmdPowerXpressRequestHighPerformance = 0x00000001;
 }
 
 // Simple vector types
