@@ -221,10 +221,10 @@ void main()
         case 63:tex_color=texture(uTextures[63],vTexCoord);break;
         #endif
     }
-    tex_color *= vTint;
-
-    FragColor = tex_color;
+    tex_color*=vTint;
     
-    if(FragColor.a==0.0)
+    FragColor=tex_color;
+    
+    if(FragColor.a==0.)
     discard;
 }
