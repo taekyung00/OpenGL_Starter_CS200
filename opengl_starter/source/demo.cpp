@@ -1,4 +1,4 @@
-// completed_sdf_and_start_framebuffers
+﻿// completed_sdf_and_start_framebuffers
 // make quad that fits to primitive(rect, circle, ...)
 // and use another shader(SDF) to draw primitive directly
 // and use transform matrix
@@ -26,6 +26,7 @@
 #include <iostream>
 #include <stb_image.h>
 #include <vector>
+#include <cmath>
 
 extern int gWidth;
 extern int gHeight;
