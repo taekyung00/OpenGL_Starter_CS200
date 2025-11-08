@@ -50,6 +50,7 @@ extern int gHeight;
 // Robot sprite sheet constants
 static constexpr ivec2 ROBOT_FRAME_SIZE{ 63, 127 };
 static constexpr int   ROBOT_NUM_FRAMES = 5;
+static constexpr int   ROBOT_VARIATIONS = 64;
 
 // Robot instance data
 struct Robot
@@ -57,15 +58,18 @@ struct Robot
 	vec2  position;
 	int	  frame;
 	float r, g, b; // tint color
+	int	  variation;
 };
 
-std::vector<Robot>			 gRobots;
-std::unique_ptr<IRenderer2D> gRenderer;
-OpenGL::Handle				 gRobotTexture = 0;
-util::FPS					 gFPSTracker;
-Uint32						 gLastTicks		 = 0;
-bool						 gVSyncEnabled	 = true;
-const char*					 gOpenGLRenderer = nullptr;
+std::vector<Robot>							 gRobots;
+std::unique_ptr<IRenderer2D>				 gRenderer;
+// OpenGL::Handle				 gRobotTexture = 0;
+std::array<OpenGL::Handle, ROBOT_VARIATIONS> gRobotTextures{};
+util::FPS									 gFPSTracker;
+Uint32										 gLastTicks		  = 0;
+bool										 gVSyncEnabled	  = true;
+const char*									 gOpenGLRenderer  = nullptr;
+int											 gMaxTextureUnits = 0;
 
 enum class RendererType
 {
@@ -83,39 +87,45 @@ void demo_setup()
 {
 	// Cache OpenGL renderer info
 	gOpenGLRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &gMaxTextureUnits);
 
 	// Initialize renderer
 	gRenderer = std::make_unique<ImmediateRenderer2D>();
 	gRenderer->Init();
 
-	// Load robot texture
-	const std::filesystem::path image_path = assets::locate_asset("Assets/Robot.png");
+	glGenTextures(ROBOT_VARIATIONS, gRobotTextures.data());
+	for (int i = 0; i < ROBOT_VARIATIONS; ++i)
+	{
+		// Load robot texture
+		std::ostringstream			sout;
+		sout << "Assets/variations/robot_var_" << std::setfill('0') << std::setw(2) << (i + 1) << ".png";
+		const std::filesystem::path image_path = assets::locate_asset(sout.str());
 
-	const bool FLIP = true;
-	stbi_set_flip_vertically_on_load(FLIP);
-	int		   w = 0, h = 0;
-	const int  num_channels		  = 4;
-	int		   files_num_channels = 0;
-	const auto image_bytes		  = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels);
+		const bool FLIP = true;
+		stbi_set_flip_vertically_on_load(FLIP);
+		int		   w = 0, h = 0;
+		const int  num_channels		  = 4;
+		int		   files_num_channels = 0;
+		const auto image_bytes		  = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels);
 
-	glGenTextures(1, &gRobotTexture);
-	glBindTexture(GL_TEXTURE_2D, gRobotTexture);
 
-	// Texture filtering
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, gRobotTextures[i]);
 
-	// Texture wrapping
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		// Texture filtering
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	constexpr int base_mipmap_level = 0;
-	constexpr int zero_border		= 0;
-	glTexImage2D(GL_TEXTURE_2D, base_mipmap_level, GL_RGBA8, w, h, zero_border, GL_RGBA, GL_UNSIGNED_BYTE, image_bytes);
-	stbi_image_free(image_bytes);
+		// Texture wrapping
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glBindTexture(GL_TEXTURE_2D, 0);
+		constexpr int base_mipmap_level = 0;
+		constexpr int zero_border		= 0;
+		glTexImage2D(GL_TEXTURE_2D, base_mipmap_level, GL_RGBA8, w, h, zero_border, GL_RGBA, GL_UNSIGNED_BYTE, image_bytes);
+		stbi_image_free(image_bytes);
 
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 	// Create random robots
 	constexpr int NUM_ROBOTS = 20;
 	gRobots.reserve(NUM_ROBOTS);
@@ -196,7 +206,7 @@ void demo_draw()
 		// Tint color
 		std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
 
-		gRenderer->DrawQuad(transform, gRobotTexture, texture_coords, tint);
+		gRenderer->DrawQuad(transform, robot.variation, texture_coords, tint);
 	}
 
 	gRenderer->EndScene();
@@ -204,7 +214,7 @@ void demo_draw()
 
 void demo_shutdown()
 {
-	glDeleteTextures(1, &gRobotTexture);
+	glDeleteTextures(ROBOT_VARIATIONS, gRobotTextures.data());
 	gRenderer->Shutdown();
 	gRenderer.reset();
 }
@@ -221,6 +231,7 @@ void demo_imgui()
 	if (gOpenGLRenderer)
 	{
 		ImGui::Text("OpenGL Renderer: %s", gOpenGLRenderer);
+		ImGui::Text("Max Texture Units: %d", gMaxTextureUnits);
 		ImGui::Separator();
 	}
 
@@ -387,6 +398,7 @@ Robot CreateRandomRobot()
 		robot.g = util::random(0.6f, 1.0f);
 		robot.b = util::random(0.45f, 1.0f);
 	}
+	robot.variation = gRobotTextures[util::random(ROBOT_VARIATIONS)];
 	return robot;
 }
 

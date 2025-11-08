@@ -17,6 +17,8 @@ precision mediump float;
 #endif
 
 uniform sampler2D uTextures[MAX_TEXTURE_SLOTS];//'' : array size must be a constant integer expression
+// we have to treat this uTextures as MAX_TEXTURE_SLOTS uniform variables
+//have to set their binding index
 
 in vec2 vTexCoord;
 flat in vec4 vTint;

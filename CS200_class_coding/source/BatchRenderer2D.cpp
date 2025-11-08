@@ -1,6 +1,8 @@
 #include "BatchRenderer2D.hpp"
 
 #include "Path.hpp"
+#include <fstream>
+#include <numeric>
 
 BatchRenderer2D::BatchRenderer2D(unsigned max_quads)
 {
@@ -13,10 +15,40 @@ BatchRenderer2D::BatchRenderer2D(unsigned max_quads)
 
 void BatchRenderer2D::Init()
 {
-	// load shaders
-	const std::filesystem::path vertex_file	  = assets::locate_asset("Assets/shaders/batch.vert");
+	// get how many texture opengl can draw
+	GLint max_tex_units = 0;
+	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_tex_units); // check with docs.gl to get minimum(16) and maximum
+	textureSlots.resize(std::min(max_tex_units, 64));
+
+	// load shaders with parsing
+	const std::filesystem::path vertex_file = assets::locate_asset("Assets/shaders/batch.vert");
+	std::ifstream				vert_stream(vertex_file);
+	std::stringstream			vert_text_stream;
+	vert_text_stream << vert_stream.rdbuf();
+	const std::string vertex_glsl = vert_text_stream.str();
+
+
 	const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/batch.frag");
-	shader									  = OpenGL::CreateShader(vertex_file, fragment_file);
+	std::ifstream				frag_stream(fragment_file);
+	std::stringstream			frag_text_stream;
+	frag_text_stream << frag_stream.rdbuf();
+	std::string		  frag_glsl		= frag_text_stream.str();
+	const size_t	  first_newline = frag_glsl.find('\n');
+	const std::string define_line	= "\n#define MAX_TEXTURE_SLOTS " + std::to_string(textureSlots.size());
+	frag_glsl.insert(first_newline, define_line);
+
+	shader = OpenGL::CreateShader(std::string_view{ vertex_glsl }, std::string_view{ frag_glsl });
+
+	// have to set their binding index
+	glUseProgram(shader.Shader);
+
+	std::vector<int> sampler_binding_values;
+	sampler_binding_values.reserve(textureSlots.size());
+	std::iota(std::begin(sampler_binding_values), std::end(sampler_binding_values), 0);
+	const GLint location = glGetUniformLocation(shader.Shader, "uTextures");
+	glUniform1iv(location, static_cast<GLsizei>(textureSlots.size()), sampler_binding_values.data());
+
+	glUseProgram(0);
 
 	// create vertex array object, buffer vertices, buffer indices
 	glGenBuffers(1, &vertexBuffer);
@@ -71,15 +103,21 @@ void BatchRenderer2D::Init()
 	glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(QuadVertex), reinterpret_cast<void*>(tint_offset));
 	glVertexAttribDivisor(2, 0);
 
+	// texture index attribute(location 3)
+	glEnableVertexAttribArray(3);
+	const ptrdiff_t tex_index_offset = offsetof(QuadVertex, textureIndex);
+	glVertexAttribIPointer(3, 1, GL_INT, sizeof(QuadVertex), reinterpret_cast<void*>(tex_index_offset));
+	glVertexAttribDivisor(2, 0);
+
 	// Unbind VAO and buffers
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	// Enable blending for transparency
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//glDisable(GL_DEPTH_TEST);
+	// glEnable(GL_BLEND);
+	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// glDisable(GL_DEPTH_TEST);
 }
 
 void BatchRenderer2D::Shutdown()
@@ -123,7 +161,27 @@ void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Hand
 		flush();
 	}
 
-	theTexture = texture;
+	int	 tex_index = 0;
+	bool found	   = false;
+	for (size_t i = 0; i < activeTextureSize; ++i)
+	{
+		if (textureSlots[i] == texture)
+		{
+			found	  = true;
+			tex_index = static_cast<int>(i);
+		}
+	}
+
+	if (!found)
+	{
+		if (activeTextureSize >= textureSlots.size())
+		{
+			flush();
+		}
+		tex_index						= static_cast<int>(activeTextureSize);
+		textureSlots[activeTextureSize] = texture;
+		++activeTextureSize;
+	}
 
 	// Convert texture_coords_lbrt (left, bottom, right, top) to texture coordinate transform matrix
 	const float left   = texture_coords_lbrt[0];
@@ -156,12 +214,12 @@ void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Hand
 		const float x = model_positions[i][0] /*bottom_left->left(x)*/ * transform[0] + model_positions[i][1] /*bottom_left->bottom(y)*/ * transform[3] + transform[6];
 		const float y = model_positions[i][0] * transform[1] + model_positions[i][1] * transform[4] + transform[7];
 
-		vertexDataEnd->x	= x;
-		vertexDataEnd->y	= y;
-		vertexDataEnd->s	= texture_coords[i][0];
-		vertexDataEnd->t	= texture_coords[i][1];
-		vertexDataEnd->tint = tint;
-
+		vertexDataEnd->x			= x;
+		vertexDataEnd->y			= y;
+		vertexDataEnd->s			= texture_coords[i][0];
+		vertexDataEnd->t			= texture_coords[i][1];
+		vertexDataEnd->tint			= tint;
+		vertexDataEnd->textureIndex = tex_index;
 		++vertexDataEnd;
 	}
 	indexCount += 6;
@@ -169,8 +227,9 @@ void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Hand
 
 void BatchRenderer2D::startBatch()
 {
-	vertexDataEnd = vertexData.data();
-	indexCount	  = 0;
+	vertexDataEnd	  = vertexData.data();
+	indexCount		  = 0;
+	activeTextureSize = 0;
 }
 
 void BatchRenderer2D::flush()
@@ -185,8 +244,12 @@ void BatchRenderer2D::flush()
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size_bytes, vertexData.data());
 
 	// select our texture
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, theTexture);
+	for (size_t i = 0; i < activeTextureSize; ++i)
+	{
+		glActiveTexture(static_cast<GLenum>(GL_TEXTURE0 + i));
+		glBindTexture(GL_TEXTURE_2D, textureSlots[i]);
+	}
+
 
 	// draw
 	glUseProgram(shader.Shader);

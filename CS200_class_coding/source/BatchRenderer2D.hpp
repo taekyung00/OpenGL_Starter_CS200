@@ -48,7 +48,7 @@ private:
 	QuadVertex* vertexDataEnd = nullptr; // pointing where we are
 	unsigned	indexCount	  = 0;
 
-	OpenGL::Handle theTexture = 0;
+	// OpenGL::Handle theTexture = 0;
 	std::vector<OpenGL::Handle> textureSlots;
 	size_t 						activeTextureSize = 0;
 
