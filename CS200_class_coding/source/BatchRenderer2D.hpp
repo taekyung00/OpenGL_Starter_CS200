@@ -13,9 +13,9 @@
 #include <vector>
 
 /**
-* 
-* basic idea - either buffer is full(reached max_quads) or user invoked endscene-> draw one time
-*/
+ *
+ * basic idea - either buffer is full(reached max_quads) or user invoked endscene-> draw one time
+ */
 
 class BatchRenderer2D : public IRenderer2D
 {
@@ -34,6 +34,7 @@ private:
 		float						 x = 0, y = 0;
 		float						 s = 0, t = 0;
 		std::array<unsigned char, 4> tint{};
+		int							 textureIndex = 0;
 	};
 
 	std::vector<QuadVertex> vertexData{};
@@ -48,6 +49,8 @@ private:
 	unsigned	indexCount	  = 0;
 
 	OpenGL::Handle theTexture = 0;
+	std::vector<OpenGL::Handle> textureSlots;
+	size_t 						activeTextureSize = 0;
 
 private:
 	void flush(); // when quad amount is reached to max_quad
