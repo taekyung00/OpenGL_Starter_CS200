@@ -42,8 +42,8 @@ void BatchRenderer2D::Init()
 	// have to set their binding index
 	glUseProgram(shader.Shader);
 
-	std::vector<int> sampler_binding_values;
-	sampler_binding_values.reserve(textureSlots.size());
+	std::vector<int> sampler_binding_values(textureSlots.size());
+	std::iota(sampler_binding_values.begin(), sampler_binding_values.end(), 0);
 	std::iota(std::begin(sampler_binding_values), std::end(sampler_binding_values), 0);
 	const GLint location = glGetUniformLocation(shader.Shader, "uTextures");
 	glUniform1iv(location, static_cast<GLsizei>(textureSlots.size()), sampler_binding_values.data());
@@ -107,7 +107,7 @@ void BatchRenderer2D::Init()
 	glEnableVertexAttribArray(3);
 	const ptrdiff_t tex_index_offset = offsetof(QuadVertex, textureIndex);
 	glVertexAttribIPointer(3, 1, GL_INT, sizeof(QuadVertex), reinterpret_cast<void*>(tex_index_offset));
-	glVertexAttribDivisor(2, 0);
+	glVertexAttribDivisor(3, 0);
 
 	// Unbind VAO and buffers
 	glBindVertexArray(0);
