@@ -42,10 +42,10 @@ private:
 		/*float						 x = 0, y = 0;*/   // don't need for each instance anymore!!
 		float						 transformrow0[3]; // instead having vertex for each instance, we have transform mat for each instance!
 		float						 transformrow1[3];
+		std::array<unsigned char, 4> tint{};
 		/*float						 s = 0, t = 0;*/ // don't need for each instance anymore!!
 		float						 texScale[2];	 // instead having texcoord for each instance, we have transform mat of texcoord for each instance with compacted version
 		float						 texOffset[2];
-		std::array<unsigned char, 4> tint{};
 		int							 textureIndex = 0;
 	};
 
