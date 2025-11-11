@@ -40,8 +40,8 @@ private:
 	struct QuadInstance //maybe we can make more compact? bit width, ...
 	{
 		/*float						 x = 0, y = 0;*/   // don't need for each instance anymore!!
-		float						 trasnformrow0[3]; // instead having vertex for each instance, we have transform mat for each instance!
-		float						 trasnformrow1[3];
+		float						 transformrow0[3]; // instead having vertex for each instance, we have transform mat for each instance!
+		float						 transformrow1[3];
 		/*float						 s = 0, t = 0;*/ // don't need for each instance anymore!!
 		float						 texScale[2];	 // instead having texcoord for each instance, we have transform mat of texcoord for each instance with compacted version
 		float						 texOffset[2];
@@ -56,7 +56,7 @@ private:
 
 	unsigned maxInstances = 0;
 
-	unsigned instanceCount = 0; // just counting instanceCount instead using dataEnd
+	//unsigned instanceCount = 0; // just counting instanceCount instead using dataEnd
 
 	// OpenGL::Handle theTexture = 0;
 	std::vector<OpenGL::Handle> textureSlots;

@@ -1,6 +1,7 @@
 #include "BatchRenderer2D.hpp"
 #include "FPS.hpp"
 #include "ImmediateRenderer2D.hpp"
+#include "InstancedRenderer2D.hpp"
 #include "Path.hpp"
 #include "Random.hpp"
 #include <GL/glew.h>
@@ -97,7 +98,7 @@ void demo_setup()
 	for (int i = 0; i < ROBOT_VARIATIONS; ++i)
 	{
 		// Load robot texture
-		std::ostringstream			sout;
+		std::ostringstream sout;
 		sout << "Assets/variations/robot_var_" << std::setfill('0') << std::setw(2) << (i + 1) << ".png";
 		const std::filesystem::path image_path = assets::locate_asset(sout.str());
 
@@ -249,12 +250,10 @@ void demo_imgui()
 	}
 
 	ImGui::SameLine();
-	ImGui::BeginDisabled();
 	if (ImGui::RadioButton("Instanced", gCurrentRenderer == RendererType::Instanced))
 	{
 		SwitchRenderer(RendererType::Instanced);
 	}
-	ImGui::EndDisabled();
 	ImGui::Separator();
 
 	// VSync toggle
@@ -421,7 +420,7 @@ void SwitchRenderer(RendererType type)
 	{
 		case RendererType::Immediate: gRenderer = std::make_unique<ImmediateRenderer2D>(); break;
 		case RendererType::Batch: gRenderer = std::make_unique<BatchRenderer2D>(); break;
-		// case RendererType::Instanced: gRenderer = std::make_unique<InstancedRenderer2D>(); break;
+		case RendererType::Instanced: gRenderer = std::make_unique<InstancedRenderer2D>(); break;
 		default: gRenderer = std::make_unique<ImmediateRenderer2D>(); break;
 	}
 
