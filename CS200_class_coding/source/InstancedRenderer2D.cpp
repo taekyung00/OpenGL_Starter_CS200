@@ -20,7 +20,7 @@ void InstancedRenderer2D::Init()
 	// get how many texture opengl can draw
 	GLint max_tex_units = 0;
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_tex_units); // check with docs.gl to get minimum(16) and maximum
-	textureSlots.resize(std::min(max_tex_units, 64));
+	textureSlots.resize(static_cast<size_t>(std::min(max_tex_units, 64)));
 
 	// load shaders with parsing
 	const std::filesystem::path vertex_file = assets::locate_asset("Assets/shaders/instance.vert");
@@ -258,7 +258,7 @@ void InstancedRenderer2D::flush()
 
 	//update the instance buffer data
 	glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadInstance) * instanceData.size(), instanceData.data());
+	glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(sizeof(QuadInstance) * instanceData.size()), instanceData.data());
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	// select our texture

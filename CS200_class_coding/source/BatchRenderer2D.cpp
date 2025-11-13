@@ -18,7 +18,7 @@ void BatchRenderer2D::Init()
 	// get how many texture opengl can draw
 	GLint max_tex_units = 0;
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_tex_units); // check with docs.gl to get minimum(16) and maximum
-	textureSlots.resize(std::min(max_tex_units, 64));
+	textureSlots.resize(static_cast<size_t>(std::min(max_tex_units, 64)));
 
 	// load shaders with parsing
 	const std::filesystem::path vertex_file = assets::locate_asset("Assets/shaders/batch.vert");
@@ -239,9 +239,9 @@ void BatchRenderer2D::flush()
 
 	// upload our vertices(vertex buffer is dynamic)
 	const auto vertex_count = vertexDataEnd - vertexData.data(); // pointer subtraction returns amount of element!
-	const auto size_bytes	= vertex_count * sizeof(QuadVertex);
+	const auto size_bytes	= static_cast<unsigned long>(vertex_count) * sizeof(QuadVertex);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, size_bytes, vertexData.data());
+	glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(size_bytes), vertexData.data());
 
 	// select our texture
 	for (size_t i = 0; i < activeTextureSize; ++i)

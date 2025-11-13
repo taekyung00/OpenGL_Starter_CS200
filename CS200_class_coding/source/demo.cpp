@@ -110,7 +110,7 @@ void demo_setup()
 		const auto image_bytes		  = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels);
 
 
-		glBindTexture(GL_TEXTURE_2D, gRobotTextures[i]);
+		glBindTexture(GL_TEXTURE_2D, gRobotTextures[static_cast<size_t>(i)]);
 
 		// Texture filtering
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
@@ -207,7 +207,7 @@ void demo_draw()
 		// Tint color
 		std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
 
-		gRenderer->DrawQuad(transform, robot.variation, texture_coords, tint);
+		gRenderer->DrawQuad(transform, static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
 	}
 
 	gRenderer->EndScene();
@@ -397,7 +397,7 @@ Robot CreateRandomRobot()
 		robot.g = util::random(0.6f, 1.0f);
 		robot.b = util::random(0.45f, 1.0f);
 	}
-	robot.variation = gRobotTextures[util::random(ROBOT_VARIATIONS)];
+	robot.variation = static_cast<int>(gRobotTextures[static_cast<OpenGL::Handle>(util::random(ROBOT_VARIATIONS))]);
 	return robot;
 }
 
