@@ -15,8 +15,8 @@
 gsl::owner<SDL_Window*>   gWindow  = nullptr;
 gsl::owner<SDL_GLContext> gContext = nullptr;
 bool                      gIsDone  = false;
-int                       gWidth   = 800;
-int                       gHeight  = 600;
+int                       gWidth   = 1024;
+int                       gHeight  = 800;
 
 #if defined(__EMSCRIPTEN__)
 #    include <emscripten.h>
@@ -69,7 +69,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // double buffer, bits for color, depth, stencil, multisampling
 
-    gWindow = SDL_CreateWindow("CS200 Fun", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    gWindow = SDL_CreateWindow("CS200 Fun", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gWidth, gHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
     gContext = SDL_GL_CreateContext(gWindow);
 

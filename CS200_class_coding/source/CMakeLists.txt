@@ -14,6 +14,7 @@ set(SOURCE_CODE
     ImmediateRenderer2D.hpp ImmediateRenderer2D.cpp
     BatchRenderer2D.hpp BatchRenderer2D.cpp
     InstancedRenderer2D.hpp InstancedRenderer2D.cpp
+    Shape.hpp Shape.cpp
     IRenderer2D.hpp
     main.cpp
     Path.hpp Path.cpp
