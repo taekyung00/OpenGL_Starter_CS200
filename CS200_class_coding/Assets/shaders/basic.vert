@@ -14,12 +14,15 @@ layout(location = 1) in vec2 aTexCoord;
 out vec2 vTexCoord;
 
 uniform mat3 uModel;
-uniform mat3 uToNDC;
+uniform mat3 uViewNDC;
+//uniform mat3 uNDC;
+//uniform mat3 uView;
 uniform mat3 uTexCoordTransform;
 
 void main()
 {
-    vec3 ndc_point = uToNDC * uModel * vec3(aVertexPosition, 1.0);
+    vec3 ndc_point = uViewNDC * uModel * vec3(aVertexPosition, 1.0);
+    // vec3 ndc_point = uNDC * uView* uModel * vec3(aVertexPosition, 1.0);
     gl_Position = vec4(ndc_point.xy, 0.0, 1.0);
     vec3 tex_coords = uTexCoordTransform * vec3(aTexCoord, 1.0);
     vTexCoord = tex_coords.st;

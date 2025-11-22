@@ -94,7 +94,7 @@ void ImmediateRenderer2D::Shutdown()
 void ImmediateRenderer2D::BeginScene(std::span<const float, 9> ndc_matrix)
 {
     glUseProgram(shader.Shader);
-    glUniformMatrix3fv(shader.UniformLocations.at("uToNDC"), 1, GL_FALSE, ndc_matrix.data());
+    glUniformMatrix3fv(shader.UniformLocations.at("uViewNDC"), 1, GL_FALSE, ndc_matrix.data());
     glUseProgram(0);
 }
 

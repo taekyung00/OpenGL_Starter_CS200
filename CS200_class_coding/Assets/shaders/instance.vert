@@ -28,7 +28,7 @@ flat out vec4 vTint;
 flat out int vTextureIndex;
 
 // uniform mat3 uModel; //get rid of it so that cpu do this 
-uniform mat3 uToNDC;
+uniform mat3 uViewNDC;
 // uniform mat3 uTexCoordTransform; //get rid of it so that cpu do this 
 
 /**
@@ -42,7 +42,7 @@ void main()
     vec2 world_position;
     world_position.x = aModelPosition.x * aModelRow0[0] + aModelPosition.y * aModelRow0[1] + aModelRow0[2];
     world_position.y = aModelPosition.x * aModelRow1[0] + aModelPosition.y * aModelRow1[1] + aModelRow1[2];
-    vec3 ndc_point = uToNDC * /* uModel * */ vec3(world_position, 1.0); //we assume that vertex position is already in world space(we dont need model xformation)
+    vec3 ndc_point = uViewNDC * /* uModel * */ vec3(world_position, 1.0); //we assume that vertex position is already in world space(we dont need model xformation)
     gl_Position = vec4(ndc_point.xy, 0.0, 1.0);
     vTexCoord = aTexCoord * aTexCoordScale + aTexCoordOffset; //get atlas of texture if need
     vTint = aTint;

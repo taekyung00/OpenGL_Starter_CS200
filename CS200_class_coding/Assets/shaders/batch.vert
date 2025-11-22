@@ -21,7 +21,7 @@ flat out vec4 vTint;
 flat out int vTextureIndex;
 
 // uniform mat3 uModel; //get rid of it so that cpu do this 
-uniform mat3 uToNDC;
+uniform mat3 uViewNDC;
 // uniform mat3 uTexCoordTransform; //get rid of it so that cpu do this 
 
 /**
@@ -32,7 +32,7 @@ it is more
 
 void main()
 {
-    vec3 ndc_point = uToNDC * /* uModel * */ vec3(aWorldPosition, 1.0); //we assume that vertex position is already in world space(we dont need model xformation)
+    vec3 ndc_point = uViewNDC * /* uModel * */ vec3(aWorldPosition, 1.0); //we assume that vertex position is already in world space(we dont need model xformation)
     gl_Position = vec4(ndc_point.xy, 0.0, 1.0);
     vTexCoord = aTexCoord.st;//don't need texcoord xform anymore, just copy
     vTint = aTint;

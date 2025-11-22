@@ -45,6 +45,25 @@ struct ivec2
 	int x, y;
 };
 
+struct Camera
+{
+	// right, up, position
+	vec2   right{ 1.0, 0.0 };
+	vec2   up{ 0.0, 1.0 };
+	// use angle to regenerate right and up vectors
+	float angle = 0.f; // in radians
+	vec2   position{ 0.0, 0.0 };
+	bool   FirstPersonView = true;
+} gCamera{};
+
+struct Viewport
+{
+	int x, y;
+	int width, height;
+} gViewport{ 0, 0, 800, 600 };
+
+float gZoom = 1.0f;
+
 extern int gWidth;
 extern int gHeight;
 
@@ -163,21 +182,50 @@ void demo_draw()
 
 	glClearColor(0.34f, 0.56f, 0.9f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+	glViewport(gViewport.x, gViewport.y, gViewport.width, gViewport.height);
 
 	// Create NDC transform matrix
-	std::array<float, 9> to_ndc{
-		2.0f / static_cast<float>(gWidth),
-		0.0f,
-		0.0f, // column 0
-		0.0f,
-		2.0f / static_cast<float>(gHeight),
-		0.0f, // column 1
-		0.0f,
-		0.0f,
-		1.0f // column 2
+	//std::array<float, 9> to_ndc{
+	//	2.0f / static_cast<float>(gWidth),
+	//	0.0f,
+	//	0.0f, // column 0
+	//	0.0f,
+	//	2.0f / static_cast<float>(gHeight),
+	//	0.0f, // column 1
+	//	0.0f,
+	//	0.0f,
+	//	1.0f // column 2
+	//};
+	//if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
+	const float ndc_scale_x = 2.f / (static_cast<float>(gViewport.width) * gZoom);
+	const float ndc_scale_y = 2.f / (static_cast<float>(gViewport.height) * gZoom); // make ndc scale depend on viewport size
+	/*=============================================================================*/
+	// but for me, it's better to apply zoom not here, but in right_x, right_y, up_x, up_y, view_tx, view_ty and don't think as denominate by zoom later.
+	/*=============================================================================*/
+	//for manually make view_ndc matrix
+
+	// so far we just apply NDC transform, but we could add camera transform here
+	// so far we treated camera as identity matrix
+	// we will apply these two matrix -> to_ndc * camera globally to every drawing call
+	// so camera matrix/NDC matrix are uniform matrix, whereas model_matrix is per-object matrix
+
+	//M_{view_ndc} = NDC * View  
+	// gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
+	const float			 right_x = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.x) : 1.f;
+	const float			 right_y = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.y) : 0.f;
+	const float			 up_x	 = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.x) : 0.f;
+	const float			 up_y	 = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.y) : 1.f;
+
+	const float view_tx = static_cast<float>(-(right_x * gCamera.position.x + right_y * gCamera.position.y));			// view translation x, -(right * position)
+	const float view_ty = static_cast<float>(-(up_x * gCamera.position.x + up_y * gCamera.position.y));		  // view translation x, -(up * position)
+
+	std::array<float, 9> view_ndc{
+		ndc_scale_x * right_x, ndc_scale_y * up_x,	  0.f, // column 1
+		ndc_scale_x * right_y, ndc_scale_y * up_y,	  0.f, // column 2
+		ndc_scale_x * view_tx, ndc_scale_y * view_ty, 1.f, // column 3
 	};
 
-	gRenderer->BeginScene(to_ndc);
+	gRenderer->BeginScene(view_ndc);
 
 	// Draw each robot
 	for (const auto& robot : gRobots)
@@ -374,6 +422,51 @@ void demo_imgui()
 		ImGui::Separator();
 		ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Warning: Approaching maximum robot limit!");
 	}
+
+	ImGui::SeparatorText("Camera Controls");
+	if (ImGui::ArrowButton("Left", ImGuiDir_Left))
+	{
+		gCamera.position.x -= 10.0;
+	}
+	ImGui::SameLine();
+	if (ImGui::ArrowButton("Right", ImGuiDir_Right))
+	{
+		gCamera.position.x += 10.0;
+	}
+
+	
+	if (ImGui::ArrowButton("Up", ImGuiDir_Up))
+	{
+		gCamera.position.y += 10.0;
+	}
+	ImGui::SameLine();
+	if (ImGui::ArrowButton("Down", ImGuiDir_Down))
+	{
+		gCamera.position.y -= 10.0;
+	}
+
+	ImGui::Checkbox("First Person View", &gCamera.FirstPersonView);
+
+	if (ImGui::SliderAngle("Camera Angle", &gCamera.angle))
+	{
+		const float cos_angle = std::cos(gCamera.angle);
+		const float sin_angle = std::sin(gCamera.angle);
+		gCamera.right.x		  = cos_angle;
+		gCamera.right.y		  = sin_angle;
+		gCamera.up.x		  = -sin_angle;
+		gCamera.up.y		  = cos_angle;
+	}
+	//200% zoom in -> 0.5 scale
+	float percent = 100.f / gZoom;
+	ImGui::SliderFloat("Zoom", &percent, 20.f , 400.f);
+	gZoom = 100.f / percent;
+
+	ImGui::SeparatorText("Viewport Settings");
+	ImGui::InputInt("X", &gViewport.x);
+	ImGui::InputInt("Y", &gViewport.y);
+	ImGui::InputInt("Width", &gViewport.width);
+	ImGui::InputInt("Height", &gViewport.height);
+
 
 	ImGui::End();
 }

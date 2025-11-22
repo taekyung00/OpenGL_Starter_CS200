@@ -163,7 +163,7 @@ void InstancedRenderer2D::Shutdown()
 void InstancedRenderer2D::BeginScene([[maybe_unused]] std::span<const float, 9> ndc_matrix)
 {
 	glUseProgram(shader.Shader);
-	glUniformMatrix3fv(shader.UniformLocations.at("uToNDC"),1, GL_FALSE, ndc_matrix.data());
+	glUniformMatrix3fv(shader.UniformLocations.at("uViewNDC"),1, GL_FALSE, ndc_matrix.data());
 	glUseProgram(0);
 
 	startBatch();
