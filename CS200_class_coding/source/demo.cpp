@@ -48,19 +48,19 @@ struct ivec2
 struct Camera
 {
 	// right, up, position
-	vec2   right{ 1.0, 0.0 };
-	vec2   up{ 0.0, 1.0 };
+	vec2  right{ 1.0, 0.0 };
+	vec2  up{ 0.0, 1.0 };
 	// use angle to regenerate right and up vectors
 	float angle = 0.f; // in radians
-	vec2   position{ 0.0, 0.0 };
-	bool   FirstPersonView = true;
+	vec2  position{ 0.0, 0.0 };
+	bool  FirstPersonView = true;
 } gCamera{};
 
 struct Viewport
 {
 	int x, y;
 	int width, height;
-} gViewport{ 0, 0, 800, 600 };
+} gViewport1{ 0, 0, 800, 300 }, gViewport2{ 0, 300, 800, 300 };
 
 float gZoom = 1.0f;
 
@@ -182,10 +182,17 @@ void demo_draw()
 
 	glClearColor(0.34f, 0.56f, 0.9f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glViewport(gViewport.x, gViewport.y, gViewport.width, gViewport.height);
+	const float right_x = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.x) : 1.f;
+	const float right_y = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.y) : 0.f;
+	const float up_x	= (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.x) : 0.f;
+	const float up_y	= (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.y) : 1.f;
+	const float view_tx = static_cast<float>(-(right_x * gCamera.position.x + right_y * gCamera.position.y)); // view translation x, -(right * position)
+	const float view_ty = static_cast<float>(-(up_x * gCamera.position.x + up_y * gCamera.position.y));		  // view translation x, -(up * position)
+
+	glViewport(gViewport1.x, gViewport1.y, gViewport1.width, gViewport1.height);
 
 	// Create NDC transform matrix
-	//std::array<float, 9> to_ndc{
+	// std::array<float, 9> to_ndc{
 	//	2.0f / static_cast<float>(gWidth),
 	//	0.0f,
 	//	0.0f, // column 0
@@ -196,36 +203,104 @@ void demo_draw()
 	//	0.0f,
 	//	1.0f // column 2
 	//};
-	//if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
-	const float ndc_scale_x = 2.f / (static_cast<float>(gViewport.width) * gZoom);
-	const float ndc_scale_y = 2.f / (static_cast<float>(gViewport.height) * gZoom); // make ndc scale depend on viewport size
+	// if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
+	const float ndc1_scale_x = 2.f / (static_cast<float>(gViewport1.width) * gZoom);
+	const float ndc1_scale_y = 2.f / (static_cast<float>(gViewport1.height) * gZoom); // make ndc scale depend on viewport size
 	/*=============================================================================*/
 	// but for me, it's better to apply zoom not here, but in right_x, right_y, up_x, up_y, view_tx, view_ty and don't think as denominate by zoom later.
 	/*=============================================================================*/
-	//for manually make view_ndc matrix
+	// for manually make view_ndc matrix
 
 	// so far we just apply NDC transform, but we could add camera transform here
 	// so far we treated camera as identity matrix
 	// we will apply these two matrix -> to_ndc * camera globally to every drawing call
 	// so camera matrix/NDC matrix are uniform matrix, whereas model_matrix is per-object matrix
 
-	//M_{view_ndc} = NDC * View  
-	// gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
-	const float			 right_x = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.x) : 1.f;
-	const float			 right_y = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.y) : 0.f;
-	const float			 up_x	 = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.x) : 0.f;
-	const float			 up_y	 = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.y) : 1.f;
+	// M_{view_ndc} = NDC * View
+	//  gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
 
-	const float view_tx = static_cast<float>(-(right_x * gCamera.position.x + right_y * gCamera.position.y));			// view translation x, -(right * position)
-	const float view_ty = static_cast<float>(-(up_x * gCamera.position.x + up_y * gCamera.position.y));		  // view translation x, -(up * position)
 
-	std::array<float, 9> view_ndc{
-		ndc_scale_x * right_x, ndc_scale_y * up_x,	  0.f, // column 1
-		ndc_scale_x * right_y, ndc_scale_y * up_y,	  0.f, // column 2
-		ndc_scale_x * view_tx, ndc_scale_y * view_ty, 1.f, // column 3
+	std::array<float, 9> view_ndc1{
+		ndc1_scale_x * right_x, ndc1_scale_y * up_x,	  0.f, // column 1
+		ndc1_scale_x * right_y, ndc1_scale_y * up_y,	  0.f, // column 2
+		ndc1_scale_x * view_tx, ndc1_scale_y * view_ty, 1.f, // column 3
 	};
 
-	gRenderer->BeginScene(view_ndc);
+	gRenderer->BeginScene(view_ndc1);
+
+	// Draw each robot
+	for (const auto& robot : gRobots)
+	{
+		// Create transform matrix (scale by size and translate to position)
+		const float width  = static_cast<float>(ROBOT_FRAME_SIZE.x);
+		const float height = static_cast<float>(ROBOT_FRAME_SIZE.y);
+		const float pos_x  = static_cast<float>(robot.position.x);
+		const float pos_y  = static_cast<float>(robot.position.y);
+
+		std::array<float, 9> transform{
+			width, 0.0f,   0.0f, // column 0: scale X
+			0.0f,  height, 0.0f, // column 1: scale Y
+			pos_x, pos_y,  1.0f	 // column 2: translation
+		};
+
+		// Texture coordinates for sprite frame selection (left, bottom, right, top)
+		// The sprite sheet is laid out horizontally with 5 frames
+		const float frame_width = 1.0f / static_cast<float>(ROBOT_NUM_FRAMES);
+		const float left		= frame_width * static_cast<float>(robot.frame);
+		const float right		= left + frame_width;
+		const float bottom		= 0.0f;
+		const float top			= 1.0f;
+
+		std::array<float, 4> texture_coords{ left, bottom, right, top };
+
+		// Tint color
+		std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
+
+		gRenderer->DrawQuad(transform, static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
+	}
+
+	gRenderer->EndScene();
+
+	/*====================================viewport2================================================*/
+
+	glViewport(gViewport2.x, gViewport2.y, gViewport2.width, gViewport2.height);
+
+	// Create NDC transform matrix
+	// std::array<float, 9> to_ndc{
+	//	2.0f / static_cast<float>(gWidth),
+	//	0.0f,
+	//	0.0f, // column 0
+	//	0.0f,
+	//	2.0f / static_cast<float>(gHeight),
+	//	0.0f, // column 1
+	//	0.0f,
+	//	0.0f,
+	//	1.0f // column 2
+	//};
+	// if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
+	const float ndc2_scale_x = 2.f / (static_cast<float>(gViewport2.width) * gZoom);
+	const float ndc2_scale_y = 2.f / (static_cast<float>(gViewport2.height) * gZoom); // make ndc scale depend on viewport size
+	/*=============================================================================*/
+	// but for me, it's better to apply zoom not here, but in right_x, right_y, up_x, up_y, view_tx, view_ty and don't think as denominate by zoom later.
+	/*=============================================================================*/
+	// for manually make view_ndc matrix
+
+	// so far we just apply NDC transform, but we could add camera transform here
+	// so far we treated camera as identity matrix
+	// we will apply these two matrix -> to_ndc * camera globally to every drawing call
+	// so camera matrix/NDC matrix are uniform matrix, whereas model_matrix is per-object matrix
+
+	// M_{view_ndc} = NDC * View
+	//  gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
+
+
+	std::array<float, 9> view_ndc2{
+		ndc2_scale_x * right_x, ndc2_scale_y * up_x,	  0.f, // column 1
+		ndc2_scale_x * right_y, ndc2_scale_y * up_y,	  0.f, // column 2
+		ndc2_scale_x * view_tx, ndc2_scale_y * view_ty, 1.f, // column 3
+	};
+
+	gRenderer->BeginScene(view_ndc2);
 
 	// Draw each robot
 	for (const auto& robot : gRobots)
@@ -434,7 +509,7 @@ void demo_imgui()
 		gCamera.position.x += 10.0;
 	}
 
-	
+
 	if (ImGui::ArrowButton("Up", ImGuiDir_Up))
 	{
 		gCamera.position.y += 10.0;
@@ -456,16 +531,22 @@ void demo_imgui()
 		gCamera.up.x		  = -sin_angle;
 		gCamera.up.y		  = cos_angle;
 	}
-	//200% zoom in -> 0.5 scale
+	// 200% zoom in -> 0.5 scale
 	float percent = 100.f / gZoom;
-	ImGui::SliderFloat("Zoom", &percent, 20.f , 400.f);
+	ImGui::SliderFloat("Zoom", &percent, 20.f, 400.f);
 	gZoom = 100.f / percent;
 
-	ImGui::SeparatorText("Viewport Settings");
-	ImGui::InputInt("X", &gViewport.x);
-	ImGui::InputInt("Y", &gViewport.y);
-	ImGui::InputInt("Width", &gViewport.width);
-	ImGui::InputInt("Height", &gViewport.height);
+	ImGui::SeparatorText("Viewport1 Settings");
+	ImGui::InputInt("X1", &gViewport1.x);
+	ImGui::InputInt("Y1", &gViewport1.y);
+	ImGui::InputInt("Width1", &gViewport1.width);
+	ImGui::InputInt("Height1", &gViewport1.height);
+
+	ImGui::SeparatorText("Viewport2 Settings");
+	ImGui::InputInt("X2", &gViewport2.x);
+	ImGui::InputInt("Y2", &gViewport2.y);
+	ImGui::InputInt("Width2", &gViewport2.width);
+	ImGui::InputInt("Height2", &gViewport2.height);
 
 
 	ImGui::End();
