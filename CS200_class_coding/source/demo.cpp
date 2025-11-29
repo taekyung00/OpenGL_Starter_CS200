@@ -174,24 +174,24 @@ void create_all_shapes()
 	}
 	// Triangles - Separate colored triangles
 	{
-		std::vector<Shape::Vertex>			   vertices;
-		constexpr std::array<unsigned char, 4> red{ 255, 0, 0, 255 };
-		constexpr std::array<unsigned char, 4> green{ 0, 255, 0, 255 };
-		constexpr std::array<unsigned char, 4> blue{ 0, 0, 255, 255 };
-		// Triangle 1 - Red
-		vertices.emplace_back(-50.0f, -40.0f, 0.5f, 0.f);
-		vertices.emplace_back(0.0f, 40.0f, 1.f, 1.f);
-		vertices.emplace_back(-100.0f, 40.0f, 0.0f, 1.f);
-		//// Triangle 2 - Green
-		//vertices.emplace_back(0.0f, -40.0f, 0.0f, 1.f);
-		//vertices.emplace_back(50.0f, 40.0f, 0.0f, 1.f);
-		//vertices.emplace_back(-50.0f, 40.0f, 0.0f, 1.f);
-		//// Triangle 3 - Blue
-		//vertices.emplace_back(50.0f, -40.0f, 0.0f, 1.f);
-		//vertices.emplace_back(100.0f, 40.0f, 0.0f, 1.f);
-		//vertices.emplace_back(0.0f, 40.0f, 0.0f, 1.f);
+		std::vector<Shape::Vertex>             vertices;
+        constexpr std::array<unsigned char, 4> red{ 255, 0, 0, 255 };
+        constexpr std::array<unsigned char, 4> green{ 0, 255, 0, 255 };
+        constexpr std::array<unsigned char, 4> blue{ 0, 0, 255, 255 };
+        // Triangle 1 - Red
+        vertices.emplace_back(-50.0f, -40.0f, 0.0f, 0.0f, red);
+        vertices.emplace_back(0.0f, 40.0f, 0.0f, 0.0f, red);
+        vertices.emplace_back(-100.0f, 40.0f, 0.0f, 0.0f, red);
+        // Triangle 2 - Green
+        vertices.emplace_back(0.0f, -40.0f, 0.0f, 0.0f, green);
+        vertices.emplace_back(50.0f, 40.0f, 0.0f, 0.0f, green);
+        vertices.emplace_back(-50.0f, 40.0f, 0.0f, 0.0f, green);
+        // Triangle 3 - Blue
+        vertices.emplace_back(50.0f, -40.0f, 0.0f, 0.0f, blue);
+        vertices.emplace_back(100.0f, 40.0f, 0.0f, 0.0f, blue);
+        vertices.emplace_back(0.0f, 40.0f, 0.0f, 0.0f, blue);
 
-		gShapes.emplace_back(Shape(Shape::PrimitivePattern::Triangles, gTextureHandle, vertices), 0.0f, -50.0f, 1.0f);
+        gShapes.push_back({ Shape(Shape::PrimitivePattern::Triangles, vertices), 0.0f, -50.0f, 1.0f });
 	}
 
 	// TriangleStrip - Ribbon/banner
