@@ -102,12 +102,13 @@ void ImmediateRenderer2D::EndScene()
 {
 }
 
-void ImmediateRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
+void ImmediateRenderer2D::DrawQuad(std::span<const float, 9> transform, float depth,OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
 {
     glUseProgram(shader.Shader);
     glBindVertexArray(vertex_array_object);
     // Set uniforms
     glUniformMatrix3fv(shader.UniformLocations.at("uModel"), 1, GL_FALSE, transform.data());
+    glUniform1f(shader.UniformLocations.at("uDepth"), depth);
 
     // Convert texture_coords_lbrt (left, bottom, right, top) to texture coordinate transform matrix
     const float left   = texture_coords_lbrt[0];

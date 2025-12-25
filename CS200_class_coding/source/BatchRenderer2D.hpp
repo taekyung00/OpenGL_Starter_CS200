@@ -26,7 +26,7 @@ public:
 	void Shutdown() override;
 	void BeginScene(std::span<const float, 9> ndc_matrix) override;
 	void EndScene() override;
-	void DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
+	void DrawQuad(std::span<const float, 9> transform, float depth, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
 
 private:
 	struct QuadVertex
@@ -35,6 +35,7 @@ private:
 		float						 s = 0, t = 0;
 		std::array<unsigned char, 4> tint{};
 		int							 textureIndex = 0;
+		float						 depth		  = 0.f;
 	};
 
 	std::vector<QuadVertex> vertexData{};

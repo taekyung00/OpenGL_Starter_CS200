@@ -20,7 +20,7 @@ public:
     void Shutdown() override;
     void BeginScene(std::span<const float, 9> ndc_matrix) override;
     void EndScene() override;
-    void DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
+    void DrawQuad(std::span<const float, 9> transform, float depth,OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
 
 private:
     OpenGL::CompiledShader shader;

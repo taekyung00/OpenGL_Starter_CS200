@@ -19,6 +19,7 @@ layout(location = 4) in vec4 aTint;
 layout(location = 5) in vec2 aTexCoordScale;
 layout(location = 6) in vec2 aTexCoordOffset;
 layout(location = 7) in int  aTextureIndex;
+layout(location = 8) in float aDepth;
 
 out vec2 vTexCoord;
 //by default, any output variable interpolated
@@ -43,7 +44,7 @@ void main()
     world_position.x = aModelPosition.x * aModelRow0[0] + aModelPosition.y * aModelRow0[1] + aModelRow0[2];
     world_position.y = aModelPosition.x * aModelRow1[0] + aModelPosition.y * aModelRow1[1] + aModelRow1[2];
     vec3 ndc_point = uViewNDC * /* uModel * */ vec3(world_position, 1.0); //we assume that vertex position is already in world space(we dont need model xformation)
-    gl_Position = vec4(ndc_point.xy, 0.0, 1.0);
+    gl_Position = vec4(ndc_point.xy, aDepth, 1.0);
     vTexCoord = aTexCoord * aTexCoordScale + aTexCoordOffset; //get atlas of texture if need
     vTint = aTint;
     vTextureIndex = aTextureIndex;

@@ -11,6 +11,8 @@
 #include <memory>
 #include <stb_image.h>
 #include <vector>
+#include <random>
+#include <algorithm>
 
 // Request high-performance GPU on systems with multiple GPUs (laptops with integrated + discrete)
 // https://docs.nvidia.com/gameworks/content/technologies/desktop/optimus.htm
@@ -60,7 +62,7 @@ struct Viewport
 {
 	int x, y;
 	int width, height;
-} gViewport1{ 0, 0, 800, 300 }, gViewport2{ 0, 300, 800, 300 };
+} gViewport1{ 0, 0, 800, 600 }/*, gViewport2{ 0, 300, 800, 300 }*/;
 
 float gZoom = 1.0f;
 
@@ -77,6 +79,7 @@ struct Robot
 {
 	vec2  position;
 	int	  frame;
+	float depth = 0.f;
 	float r, g, b; // tint color
 	int	  variation;
 };
@@ -156,7 +159,8 @@ void demo_setup()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
+	//glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 
 	// Initialize VSync (adaptive vsync with fallback to regular vsync)
 	// https://wiki.libsdl.org/SDL_GL_SetSwapInterval
@@ -181,7 +185,7 @@ void demo_draw()
 	gFPSTracker.Update(deltaSeconds);
 
 	glClearColor(0.34f, 0.56f, 0.9f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear depth buffer too as 1.0
 	const float right_x = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.x) : 1.f;
 	const float right_y = (gCamera.FirstPersonView) ? static_cast<float>(gCamera.right.y) : 0.f;
 	const float up_x	= (gCamera.FirstPersonView) ? static_cast<float>(gCamera.up.x) : 0.f;
@@ -256,84 +260,85 @@ void demo_draw()
 		// Tint color
 		std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
 
-		gRenderer->DrawQuad(transform, static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
+		gRenderer->DrawQuad(transform,robot.depth ,static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
 	}
 
 	gRenderer->EndScene();
 
-	/*====================================viewport2================================================*/
+	///*====================================viewport2================================================*/
 
-	glViewport(gViewport2.x, gViewport2.y, gViewport2.width, gViewport2.height);
+	//glViewport(gViewport2.x, gViewport2.y, gViewport2.width, gViewport2.height);
 
-	// Create NDC transform matrix
-	// std::array<float, 9> to_ndc{
-	//	2.0f / static_cast<float>(gWidth),
-	//	0.0f,
-	//	0.0f, // column 0
-	//	0.0f,
-	//	2.0f / static_cast<float>(gHeight),
-	//	0.0f, // column 1
-	//	0.0f,
-	//	0.0f,
-	//	1.0f // column 2
+	//// Create NDC transform matrix
+	//// std::array<float, 9> to_ndc{
+	////	2.0f / static_cast<float>(gWidth),
+	////	0.0f,
+	////	0.0f, // column 0
+	////	0.0f,
+	////	2.0f / static_cast<float>(gHeight),
+	////	0.0f, // column 1
+	////	0.0f,
+	////	0.0f,
+	////	1.0f // column 2
+	////};
+	//// if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
+	//const float ndc2_scale_x = 2.f / (static_cast<float>(gViewport2.width) * gZoom);
+	//const float ndc2_scale_y = 2.f / (static_cast<float>(gViewport2.height) * gZoom); // make ndc scale depend on viewport size
+	///*=============================================================================*/
+	//// but for me, it's better to apply zoom not here, but in right_x, right_y, up_x, up_y, view_tx, view_ty and don't think as denominate by zoom later.
+	///*=============================================================================*/
+	//// for manually make view_ndc matrix
+
+	//// so far we just apply NDC transform, but we could add camera transform here
+	//// so far we treated camera as identity matrix
+	//// we will apply these two matrix -> to_ndc * camera globally to every drawing call
+	//// so camera matrix/NDC matrix are uniform matrix, whereas model_matrix is per-object matrix
+
+	//// M_{view_ndc} = NDC * View
+	////  gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
+
+
+	//std::array<float, 9> view_ndc2{
+	//	ndc2_scale_x * right_x, ndc2_scale_y * up_x,	  0.f, // column 1
+	//	ndc2_scale_x * right_y, ndc2_scale_y * up_y,	  0.f, // column 2
+	//	ndc2_scale_x * view_tx, ndc2_scale_y * view_ty, 1.f, // column 3
 	//};
-	// if bottom left is 0,0 - translation position + 0.5 * (c_w,c_h)
-	const float ndc2_scale_x = 2.f / (static_cast<float>(gViewport2.width) * gZoom);
-	const float ndc2_scale_y = 2.f / (static_cast<float>(gViewport2.height) * gZoom); // make ndc scale depend on viewport size
-	/*=============================================================================*/
-	// but for me, it's better to apply zoom not here, but in right_x, right_y, up_x, up_y, view_tx, view_ty and don't think as denominate by zoom later.
-	/*=============================================================================*/
-	// for manually make view_ndc matrix
 
-	// so far we just apply NDC transform, but we could add camera transform here
-	// so far we treated camera as identity matrix
-	// we will apply these two matrix -> to_ndc * camera globally to every drawing call
-	// so camera matrix/NDC matrix are uniform matrix, whereas model_matrix is per-object matrix
+	//gRenderer->BeginScene(view_ndc2);
 
-	// M_{view_ndc} = NDC * View
-	//  gl_Position = to_ndc * camera * model_matrix * vec3(position, 0.0, 1.0);
+	//// Draw each robot
+	//for (const auto& robot : gRobots)
+	//{
+	//	// Create transform matrix (scale by size and translate to position)
+	//	const float width  = static_cast<float>(ROBOT_FRAME_SIZE.x);
+	//	const float height = static_cast<float>(ROBOT_FRAME_SIZE.y);
+	//	const float pos_x  = static_cast<float>(robot.position.x);
+	//	const float pos_y  = static_cast<float>(robot.position.y);
 
+	//	std::array<float, 9> transform{
+	//		width, 0.0f,   0.0f, // column 0: scale X
+	//		0.0f,  height, 0.0f, // column 1: scale Y
+	//		pos_x, pos_y,  1.0f	 // column 2: translation
+	//	};
 
-	std::array<float, 9> view_ndc2{
-		ndc2_scale_x * right_x, ndc2_scale_y * up_x,	  0.f, // column 1
-		ndc2_scale_x * right_y, ndc2_scale_y * up_y,	  0.f, // column 2
-		ndc2_scale_x * view_tx, ndc2_scale_y * view_ty, 1.f, // column 3
-	};
+	//	// Texture coordinates for sprite frame selection (left, bottom, right, top)
+	//	// The sprite sheet is laid out horizontally with 5 frames
+	//	const float frame_width = 1.0f / static_cast<float>(ROBOT_NUM_FRAMES);
+	//	const float left		= frame_width * static_cast<float>(robot.frame);
+	//	const float right		= left + frame_width;
+	//	const float bottom		= 0.0f;
+	//	const float top			= 1.0f;
 
-	gRenderer->BeginScene(view_ndc2);
+	//	std::array<float, 4> texture_coords{ left, bottom, right, top };
 
-	// Draw each robot
-	for (const auto& robot : gRobots)
-	{
-		// Create transform matrix (scale by size and translate to position)
-		const float width  = static_cast<float>(ROBOT_FRAME_SIZE.x);
-		const float height = static_cast<float>(ROBOT_FRAME_SIZE.y);
-		const float pos_x  = static_cast<float>(robot.position.x);
-		const float pos_y  = static_cast<float>(robot.position.y);
+	//	// Tint color
+	//	std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
 
-		std::array<float, 9> transform{
-			width, 0.0f,   0.0f, // column 0: scale X
-			0.0f,  height, 0.0f, // column 1: scale Y
-			pos_x, pos_y,  1.0f	 // column 2: translation
-		};
+	//	gRenderer->DrawQuad(transform, static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
+	//}
 
-		// Texture coordinates for sprite frame selection (left, bottom, right, top)
-		// The sprite sheet is laid out horizontally with 5 frames
-		const float frame_width = 1.0f / static_cast<float>(ROBOT_NUM_FRAMES);
-		const float left		= frame_width * static_cast<float>(robot.frame);
-		const float right		= left + frame_width;
-		const float bottom		= 0.0f;
-		const float top			= 1.0f;
-
-		std::array<float, 4> texture_coords{ left, bottom, right, top };
-
-		// Tint color
-		std::array<float, 4> tint{ robot.r, robot.g, robot.b, 1.0f };
-
-		gRenderer->DrawQuad(transform, static_cast<OpenGL::Handle>(robot.variation), texture_coords, tint);
-	}
-
-	gRenderer->EndScene();
+	//gRenderer->EndScene();
+	////===================================viewport2================================================*/
 }
 
 void demo_shutdown()
@@ -542,12 +547,37 @@ void demo_imgui()
 	ImGui::InputInt("Width1", &gViewport1.width);
 	ImGui::InputInt("Height1", &gViewport1.height);
 
-	ImGui::SeparatorText("Viewport2 Settings");
-	ImGui::InputInt("X2", &gViewport2.x);
-	ImGui::InputInt("Y2", &gViewport2.y);
-	ImGui::InputInt("Width2", &gViewport2.width);
-	ImGui::InputInt("Height2", &gViewport2.height);
+	//ImGui::SeparatorText("Viewport2 Settings");
+	//ImGui::InputInt("X2", &gViewport2.x);
+	//ImGui::InputInt("Y2", &gViewport2.y);
+	//ImGui::InputInt("Width2", &gViewport2.width);
+	//ImGui::InputInt("Height2", &gViewport2.height);
 
+	ImGui::SeparatorText("Depth Settings");
+
+	if (ImGui::Button("Sort as Painters Algorithm"))
+	{
+		std::sort(gRobots.begin(), gRobots.end(), [](const Robot& left, const Robot& right) {
+			return left.depth > right.depth; 
+		});
+	}
+
+	if (ImGui::Button("Sort as Front to Back"))
+	{
+		std::sort(
+			gRobots.begin(), gRobots.end(),
+			[](const Robot& left, const Robot& right)
+			{
+				return left.depth < right.depth; // then smaller depth drawn first, and frag of larger depth gonna be skipped over by depth test, and hopefully save effort of fragment shader
+			});
+	}
+
+	if (ImGui::Button("Sort Randomly"))
+	{
+		std::random_device rd;
+		std::mt19937	   g(rd());
+		std::shuffle(gRobots.begin(), gRobots.end(), g);
+	}
 
 	ImGui::End();
 }
@@ -560,6 +590,7 @@ Robot CreateRandomRobot()
 	const float half_height = static_cast<float>(gHeight) / 2.0f;
 	robot.position.x		= static_cast<double>(util::random(-half_width, half_width));
 	robot.position.y		= static_cast<double>(util::random(-half_height, half_height));
+	robot.depth				= util::random(-1.0f, 1.0f);
 	robot.frame				= util::random(ROBOT_NUM_FRAMES);
 	if (util::random(0.0f, 1.0f) < 0.85f)
 	{

@@ -20,5 +20,5 @@ public:
     virtual void           EndScene()                                       = 0;
     constexpr static float WHITE[]                                          = { 1.0f, 1.0f, 1.0f, 1.0f };
     constexpr static float WHOLE_IMAGE[]                                    = { 0.0f, 0.0f, 1.0f, 1.0f };
-    virtual void DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt = WHOLE_IMAGE, std::span<const float, 4> tint_color = WHITE) = 0;
+    virtual void DrawQuad(std::span<const float, 9> transform, float depth, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt = WHOLE_IMAGE, std::span<const float, 4> tint_color = WHITE) = 0;
 };

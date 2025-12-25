@@ -145,6 +145,12 @@ void InstancedRenderer2D::Init()
 	glVertexAttribIPointer(7, 1, GL_INT, sizeof(QuadInstance), reinterpret_cast<void*>(tex_index_offset));
 	glVertexAttribDivisor(7, 1);
 
+	// depth attribute of instanceBuffer (location 8)
+	glEnableVertexAttribArray(8);
+	const ptrdiff_t depth_offset = offsetof(QuadInstance, depth);
+	glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, sizeof(QuadInstance), reinterpret_cast<void*>(depth_offset));
+	glVertexAttribDivisor(8, 1);
+
 	// Unbind VAO and buffers
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -163,7 +169,7 @@ void InstancedRenderer2D::Shutdown()
 void InstancedRenderer2D::BeginScene([[maybe_unused]] std::span<const float, 9> ndc_matrix)
 {
 	glUseProgram(shader.Shader);
-	glUniformMatrix3fv(shader.UniformLocations.at("uViewNDC"),1, GL_FALSE, ndc_matrix.data());
+	glUniformMatrix3fv(shader.UniformLocations.at("uViewNDC"), 1, GL_FALSE, ndc_matrix.data());
 	glUseProgram(0);
 
 	startBatch();
@@ -186,9 +192,7 @@ namespace
 	}
 }
 
-void InstancedRenderer2D::DrawQuad(
-	[[maybe_unused]] std::span<const float, 9> transform, [[maybe_unused]] OpenGL::Handle texture, [[maybe_unused]] std::span<const float, 4> texture_coords_lbrt,
-	[[maybe_unused]] std::span<const float, 4> tint_color)
+void InstancedRenderer2D::DrawQuad(std::span<const float, 9> transform, float depth, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
 {
 	if (instanceData.size() >= maxInstances)
 	{
@@ -226,8 +230,8 @@ void InstancedRenderer2D::DrawQuad(
 
 	instance.textureIndex = tex_index;
 
-	instance.texScale[0] = right - left;
-	instance.texScale[1] = top - bottom;
+	instance.texScale[0]  = right - left;
+	instance.texScale[1]  = top - bottom;
 	instance.texOffset[0] = left;
 	instance.texOffset[1] = bottom;
 
@@ -241,8 +245,9 @@ void InstancedRenderer2D::DrawQuad(
 
 	instance.tint = pack_color(tint_color);
 
-	instanceData.push_back(instance);
+	instance.depth = depth;
 
+	instanceData.push_back(instance);
 }
 
 void InstancedRenderer2D::startBatch()
@@ -256,7 +261,7 @@ void InstancedRenderer2D::flush()
 	if (instanceData.empty()) [[unlikely]]
 		return;
 
-	//update the instance buffer data
+	// update the instance buffer data
 	glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(sizeof(QuadInstance) * instanceData.size()), instanceData.data());
 	glBindBuffer(GL_ARRAY_BUFFER, 0);

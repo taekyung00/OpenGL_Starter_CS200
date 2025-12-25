@@ -109,6 +109,12 @@ void BatchRenderer2D::Init()
 	glVertexAttribIPointer(3, 1, GL_INT, sizeof(QuadVertex), reinterpret_cast<void*>(tex_index_offset));
 	glVertexAttribDivisor(3, 0);
 
+	// depth attribute(location 4)
+	glEnableVertexAttribArray(4);
+	const ptrdiff_t depth_offset = offsetof(QuadVertex, depth);
+	glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(QuadVertex), reinterpret_cast<void*>(depth_offset));
+	glVertexAttribDivisor(4, 0);
+
 	// Unbind VAO and buffers
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -154,7 +160,7 @@ namespace
 	}
 }
 
-void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
+void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform,float depth, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color)
 {
 	if (indexCount + 6 > maxIndices)
 	{
@@ -220,6 +226,7 @@ void BatchRenderer2D::DrawQuad(std::span<const float, 9> transform, OpenGL::Hand
 		vertexDataEnd->t			= texture_coords[i][1];
 		vertexDataEnd->tint			= tint;
 		vertexDataEnd->textureIndex = tex_index;
+		vertexDataEnd->depth		= depth;
 		++vertexDataEnd;
 	}
 	indexCount += 6;

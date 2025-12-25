@@ -11,6 +11,7 @@
 #include "Shader.hpp"
 #include <array>
 #include <vector>
+#include <span>
 
 /**
  *
@@ -34,7 +35,7 @@ public:
 	void Shutdown() override;
 	void BeginScene(std::span<const float, 9> ndc_matrix) override;
 	void EndScene() override;
-	void DrawQuad(std::span<const float, 9> transform, OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
+	void DrawQuad(std::span<const float, 9> transform, float depth,OpenGL::Handle texture, std::span<const float, 4> texture_coords_lbrt, std::span<const float, 4> tint_color) override;
 
 private:
 	struct QuadInstance //maybe we can make more compact? bit width, ...
@@ -47,6 +48,7 @@ private:
 		float						 texScale[2];	 // instead having texcoord for each instance, we have transform mat of texcoord for each instance with compacted version
 		float						 texOffset[2];
 		int							 textureIndex = 0;
+		float						 depth		  = 0.0f;
 	};
 
 	std::vector<QuadInstance> instanceData{};
