@@ -121,32 +121,32 @@ void demo_setup()
             }));
     }
 
-    {
-        const std::filesystem::path gamma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
-        const std::filesystem::path gamma_frag   = assets::locate_asset("Assets/shaders/gamma-correct.frag");
-        auto                        gamma_shader = OpenGL::CreateShader(gamma_vert, gamma_frag);
+    //{
+    //    const std::filesystem::path gamma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path gamma_frag   = assets::locate_asset("Assets/shaders/gamma-correct.frag");
+    //    auto                        gamma_shader = OpenGL::CreateShader(gamma_vert, gamma_frag);
 
-        gPostProcessing.AddEffect(PostProcessingEffect(
-            "Gamma Correction", PostProcessingEffect::Enable::True, gamma_shader, [](const OpenGL::CompiledShader& shader) { glUniform1f(shader.UniformLocations.at("uGamma"), gGammaValue); }));
-    }
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Gamma Correction", PostProcessingEffect::Enable::True, gamma_shader, [](const OpenGL::CompiledShader& shader) { glUniform1f(shader.UniformLocations.at("uGamma"), gGammaValue); }));
+    //}
 
-    {
-        const std::filesystem::path chroma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
-        const std::filesystem::path chroma_frag   = assets::locate_asset("Assets/shaders/chromatic-aberration.frag");
-        auto                        chroma_shader = OpenGL::CreateShader(chroma_vert, chroma_frag);
+    //{
+    //    const std::filesystem::path chroma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path chroma_frag   = assets::locate_asset("Assets/shaders/chromatic-aberration.frag");
+    //    auto                        chroma_shader = OpenGL::CreateShader(chroma_vert, chroma_frag);
 
-        gPostProcessing.AddEffect(PostProcessingEffect(
-            "Chromatic Aberration", PostProcessingEffect::Enable::True, chroma_shader,
-            [](const OpenGL::CompiledShader& shader) { glUniform2f(shader.UniformLocations.at("uMouseFocusPoint"), gChromaticAberrationMouseX, gChromaticAberrationMouseY); }));
-    }
-    {
-        const std::filesystem::path pixel_vert   = assets::locate_asset("Assets/shaders/simple.vert");
-        const std::filesystem::path pixel_frag   = assets::locate_asset("Assets/shaders/pixelize.frag");
-        auto                        pixel_shader = OpenGL::CreateShader(pixel_vert, pixel_frag);
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Chromatic Aberration", PostProcessingEffect::Enable::True, chroma_shader,
+    //        [](const OpenGL::CompiledShader& shader) { glUniform2f(shader.UniformLocations.at("uMouseFocusPoint"), gChromaticAberrationMouseX, gChromaticAberrationMouseY); }));
+    //}
+    //{
+    //    const std::filesystem::path pixel_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path pixel_frag   = assets::locate_asset("Assets/shaders/pixelize.frag");
+    //    auto                        pixel_shader = OpenGL::CreateShader(pixel_vert, pixel_frag);
 
-        gPostProcessing.AddEffect(PostProcessingEffect(
-            "Pixelization", PostProcessingEffect::Enable::True, pixel_shader, [](const OpenGL::CompiledShader& shader) { glUniform1i(shader.UniformLocations.at("pixelSize"), gPixelSize); })); // must be odd
-    }
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Pixelization", PostProcessingEffect::Enable::True, pixel_shader, [](const OpenGL::CompiledShader& shader) { glUniform1i(shader.UniformLocations.at("pixelSize"), gPixelSize); })); // must be odd
+    //}
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
