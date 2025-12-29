@@ -1,4 +1,4 @@
-﻿/**
+/**
  * \file
  * \author Rudy Castan
  * \date 2025 Fall
