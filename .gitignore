@@ -48,3 +48,6 @@ $RECYCLE.BIN/
 .TemporaryItems
 ehthumbs.db
 Thumbs.db
+
+#ignore
+CS200_class_coding/
