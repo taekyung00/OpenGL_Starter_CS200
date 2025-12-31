@@ -1,0 +1,3801 @@
+Directory structure:
+└── msaa_postfx_starter/
+    ├── README.md
+    ├── CMakeLists.txt
+    ├── CMakePresets.json
+    ├── .clang-format
+    ├── app_resources/
+    │   └── web/
+    │       └── index_shell.html
+    ├── Assets/
+    │   └── shaders/
+    │       ├── box-blur.frag
+    │       ├── chromatic-aberration.frag
+    │       ├── gamma-correct.frag
+    │       ├── pixelize.frag
+    │       ├── sdf.frag
+    │       ├── sdf.vert
+    │       ├── simple-texture.frag
+    │       └── simple.vert
+    ├── cmake/
+    │   ├── CompilerWarnings.cmake
+    │   ├── Dependencies.cmake
+    │   ├── StandardProjectSettings.cmake
+    │   └── dependencies/
+    │       ├── DearImGUI.cmake
+    │       ├── GLEW.cmake
+    │       ├── GSL.cmake
+    │       ├── OpenGL.cmake
+    │       ├── SDL2.cmake
+    │       └── STB.cmake
+    ├── docs/
+    │   ├── DebuggingWeb.md
+    │   └── DevEnvironment.md
+    └── source/
+        ├── README.md
+        ├── CMakeLists.txt
+        ├── demo.cpp
+        ├── FarmSceneRenderer.cpp
+        ├── FarmSceneRenderer.hpp
+        ├── Handle.hpp
+        ├── ImGuiHelper.cpp
+        ├── ImGuiHelper.hpp
+        ├── main.cpp
+        ├── OffscreenFramebuffer.cpp
+        ├── OffscreenFramebuffer.hpp
+        ├── Path.cpp
+        ├── Path.hpp
+        ├── PostProcessingPipeline.cpp
+        ├── PostProcessingPipeline.hpp
+        ├── Shader.cpp
+        └── Shader.hpp
+
+================================================
+FILE: README.md
+================================================
+# CS200 OpenGL Starter
+
+## How to Build and Run
+
+First Setup your [Development Environment](docs/DevEnvironment.md)
+
+### Command Line Build
+
+**Windows**
+
+```sh
+# configure / generate build files
+cmake --preset windows-debug
+cmake --preset windows-developer-release
+cmake --preset windows-release
+cmake --preset web-debug-on-windows
+
+# Build exe
+cmake --build --preset windows-debug
+cmake --build --preset windows-developer-release
+cmake --build --preset windows-release
+cmake --build --preset web-debug-on-windows
+```
+
+**Linux**
+```sh
+# configure / generate build files
+cmake --preset linux-debug
+cmake --preset linux-developer-release
+cmake --preset linux-release
+cmake --preset web-debug
+cmake --preset web-developer-release
+cmake --preset web-release
+
+# Build exe
+cmake --build --preset linux-debug
+cmake --build --preset linux-developer-release
+cmake --build --preset linux-release
+cmake --build --preset web-debug
+cmake --build --preset web-developer-release
+cmake --build --preset web-release
+```
+
+
+
+================================================
+FILE: CMakeLists.txt
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+cmake_minimum_required(VERSION 3.21)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# #  Helper to print out all environment variables
+# get_cmake_property(_variableNames VARIABLES)
+# list (SORT _variableNames)
+# foreach (_variableName ${_variableNames})
+#     message(STATUS "${_variableName}=${${_variableName}}")
+# endforeach()
+
+project(cs200_Fun)
+
+include(cmake/StandardProjectSettings.cmake)
+
+include(cmake/CompilerWarnings.cmake)
+add_library(project_options INTERFACE)
+target_compile_features(project_options INTERFACE cxx_std_20)
+set_project_warnings(project_options)
+
+include(cmake/Dependencies.cmake)
+
+add_subdirectory(source)
+
+
+
+
+================================================
+FILE: CMakePresets.json
+================================================
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "conf-common",
+            "description": "General settings that apply to all configurations",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/build/install/${presetName}"
+        },
+        {
+            "name": "conf-windows-common",
+            "description": "Windows settings for MSBuild toolchain that apply to msvc and clang",
+            "hidden": true,
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "toolset": {
+                "value": "host=x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_CXX_COMPILER": "cl"
+            }
+        },
+        {
+            "name": "conf-unixlike-common",
+            "description": "Unix-like OS settings for gcc and clang toolchains",
+            "hidden": true,
+            "inherits": "conf-common",
+            "generator": "Ninja",
+            "condition": {
+                "type": "inList",
+                "string": "${hostSystemName}",
+                "list": [
+                    "Linux",
+                    "Darwin"
+                ]
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
+        {
+            "name": "conf-web-common",
+            "description": "Common Web/Emscripten configuration",
+            "hidden": true,
+            "inherits": "conf-unixlike-common",
+            "generator": "Ninja",
+            "toolchainFile": "~/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "~/emsdk/upstream/emscripten/emcc",
+                "CMAKE_CXX_COMPILER": "~/emsdk/upstream/emscripten/em++"
+            }
+        },
+        {
+            "name": "windows-debug",
+            "displayName": "Windows Debug",
+            "description": "Debug Build on Windows",
+            "inherits": "conf-windows-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "windows-developer-release",
+            "displayName": "Windows Developer Release",
+            "description": "Optimized Developer Build on Windows",
+            "inherits": "conf-windows-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "windows-release",
+            "displayName": "Windows Release",
+            "description": "Optimized User Facing Build on Windows",
+            "inherits": "conf-windows-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "FALSE"
+            }
+        },
+        {
+            "name": "web-debug-on-windows",
+            "displayName": "Web Debug on Windows",
+            "description": "Debug Build on Web for Windows",
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "generator": "Ninja",
+            "toolchainFile": "$env{USERPROFILE}/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "$env{USERPROFILE}/emsdk/upstream/emscripten/emcc",
+                "CMAKE_CXX_COMPILER": "$env{USERPROFILE}/emsdk/upstream/emscripten/em++",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "linux-debug",
+            "displayName": "Linux Debug",
+            "description": "Debug Build on Linux",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "linux-developer-release",
+            "displayName": "Linux Developer Release",
+            "description": "Optimized Developer Build on Linux",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "linux-release",
+            "displayName": "Linux Release",
+            "description": "Optimized User Facing Build on Linux",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "FALSE"
+            }
+        },
+        {
+            "name": "web-debug",
+            "displayName": "Web Debug",
+            "description": "Debug Build on Web",
+            "inherits": "conf-web-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "web-developer-release",
+            "displayName": "Web Developer Release",
+            "description": "Optimized Developer Build on Web",
+            "inherits": "conf-web-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "TRUE"
+            }
+        },
+        {
+            "name": "web-release",
+            "displayName": "Web Release",
+            "description": "Optimized User Facing Build on Web",
+            "inherits": "conf-web-common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "IS_DEVELOPER_VERSION": "FALSE"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-windows-common",
+            "description": "Windows build settings",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "build-unixlike-common",
+            "description": "Unix-like build settings",
+            "hidden": true,
+            "condition": {
+                "type": "inList",
+                "string": "${hostSystemName}",
+                "list": [
+                    "Linux",
+                    "Darwin"
+                ]
+            }
+        },
+        {
+            "name": "windows-debug",
+            "configurePreset": "windows-debug",
+            "inherits": "build-windows-common",
+            "configuration": "Debug"
+        },
+        {
+            "name": "windows-developer-release",
+            "configurePreset": "windows-developer-release",
+            "inherits": "build-windows-common",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "windows-release",
+            "configurePreset": "windows-release",
+            "inherits": "build-windows-common",
+            "configuration": "Release"
+        },
+        {
+            "name": "web-debug-on-windows",
+            "configurePreset": "web-debug-on-windows",
+            "inherits": "build-windows-common",
+            "configuration": "Debug"
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug",
+            "inherits": "build-unixlike-common",
+            "configuration": "Debug"
+        },
+        {
+            "name": "linux-developer-release",
+            "configurePreset": "linux-developer-release",
+            "inherits": "build-unixlike-common",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release",
+            "inherits": "build-unixlike-common",
+            "configuration": "Release"
+        },
+        {
+            "name": "web-debug",
+            "configurePreset": "web-debug",
+            "inherits": "build-unixlike-common",
+            "configuration": "Debug"
+        },
+        {
+            "name": "web-developer-release",
+            "configurePreset": "web-developer-release",
+            "inherits": "build-unixlike-common",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "web-release",
+            "configurePreset": "web-release",
+            "inherits": "build-unixlike-common",
+            "configuration": "Release"
+        }
+    ]
+}
+
+
+
+================================================
+FILE: .clang-format
+================================================
+# clang-format version 14
+Language : Cpp
+Standard : Latest
+
+AccessModifierOffset: -4
+AlignAfterOpenBracket: AlwaysBreak
+AlignArrayOfStructures: Right
+AlignConsecutiveAssignments: AcrossComments
+AlignConsecutiveBitFields: AcrossEmptyLinesAndComments
+AlignConsecutiveDeclarations: AcrossComments
+AlignConsecutiveMacros: AcrossComments
+AlignEscapedNewlines: Right
+AlignOperands: Align
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
+BitFieldColonSpacing: Both
+BreakAfterJavaFieldAnnotations: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Allman
+BreakBeforeConceptDeclarations: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: false
+ColumnLimit: 200
+CompactNamespaces: true
+ContinuationIndentWidth: 4
+Cpp11BracedListStyle: false
+DeriveLineEnding: true
+DerivePointerAlignment: false
+EmptyLineAfterAccessModifier: Leave
+EmptyLineBeforeAccessModifier: LogicalBlock
+FixNamespaceComments: false
+IncludeBlocks: Preserve
+IndentAccessModifiers: false
+IndentCaseBlocks: true
+IndentCaseLabels: true
+IndentExternBlock: NoIndent
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+IndentRequires: false
+IndentWidth: 4
+IndentWrappedFunctionNames: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+LambdaBodyIndentation: Signature
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: All
+PPIndentWidth: -1
+PackConstructorInitializers: BinPack
+PointerAlignment: Left
+# QualifierOrder: ['static', 'constexpr', 'inline', 'const', 'type' ]
+ReferenceAlignment: Left
+ReflowComments: true
+SeparateDefinitionBlocks: Always
+SortIncludes: CaseSensitive
+SortUsingDeclarations: true
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+SpaceInEmptyParentheses: false
+SpacesInAngles: Never
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+TabWidth: 4
+UseCRLF: false
+UseTab: Never
+
+
+
+================================================
+FILE: app_resources/web/index_shell.html
+================================================
+<!doctype html>
+<html lang="en-us">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="icon" href="https://www.digipen.edu/themes/custom/digipen_future/favicon.ico"
+        type="image/vnd.microsoft.icon" />
+    <title>DigiPen Programming Fun</title>
+    <meta name="description" content="Computer Programming Fun for DigiPen classes">
+
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <style>
+        body {
+            overflow-y: hidden;
+            overflow-x: hidden;
+            margin: 0;
+            background-image: url('data:image/svg+xml;base64,\
+PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbDpzcGFjZT0icHJlc2VydmUiIGFyaWEtbGFiZWxsZWRieT0ibG9nb190aXRsZSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ieE1pbllNaW4gbWVldCIgdmlld0JveD0iMCAyOTAuNSA2MTMuNSAyMTEiPgogIDx0aXRsZT5EaWdpUGVuIEluc3RpdHV0ZSBvZiBUZWNobm9sb2d5PC90aXRsZT4KICA8cGF0aCBkPSJNMTEzLjMgMzk2LjZhMzcgMzcgMCAwIDAgMzcuNC0zNi43YzAtMjAtMTcuMS0zNi43LTM4LjEtMzYuN0g4NS4zdjczLjFoMjcuOHYuM2guMnptLTc0IDczLjZhMzcgMzcgMCAwIDEtMzcuNC0zNi42QTM3LjYgMzcuNiAwIDAgMSAzOS44IDM5N2gyNy4zdjczLjFIMzkuM3YuMXptMzIuMi0xNDcuMWg5Ljd2MTQ3LjFoLTkuN3ptMzE3LjEgMTguOGMwIDIuNi0yLjYgNC42LTUuNiA0LjZoLTE1Yy0zLjEgMC01LjYtMi4xLTUuNi00LjZ2LTcuN2MwLTIuNiAyLjYtNC42IDUuNi00LjZoMTVjMy4xIDAgNS42IDIuMSA1LjYgNC42djcuN3ptLTI2LjUgOC45aDI2LjV2NjMuNmgtMjYuNXptLTgwLjItOC45YzAgMi42LTIuNiA0LjYtNS42IDQuNmgtMTVjLTMuMSAwLTUuOC0yLjEtNS44LTQuNnYtNy43YzAtMi42IDIuNi00LjYgNS44LTQuNmgxNWMzLjEgMCA1LjYgMi4xIDUuNiA0LjZ2Ny43em0tMjYuNiA4LjloMjYuNXY2My42aC0yNi41ek00NzEuOCAzMzljLTMuMS01LTcuNS04LjktMTIuOC0xMS42YTQxLjQgNDEuNCAwIDAgMC0xOC42LTQuMUgzOTh2OTEuMmgyNi4zVjM4N2gxOC4zYzQuOCAwIDkuMS0uOSAxMy4yLTIuNiAzLjktMS43IDcuNy0zLjkgMTAuOS02LjggMy4xLTIuOSA1LjYtNi4yIDcuMi0xMC40IDEuNy0zLjkgMi42LTcgMi42LTExLjRhMzYuNyAzNi43IDAgMCAwLTQuNy0xNi44bS0zNS40IDI3LjJoLTEydi0yMS40aDExLjhjNiAwIDEwLjkgNC44IDEwLjkgMTAuNi40IDYtNC42IDEwLjgtMTAuNyAxMC44bTE3Mi45LTguNmEyMS4xIDIxLjEgMCAwIDAtOS42LTcuOSAzOC4xIDM4LjEgMCAwIDAtMTQuNC0yLjdoLTM5LjV2NjcuNWgyNi41di0zNy42YzAtNC44IDIuMS02LjggNi43LTYuOCA0LjggMCA2LjcgMi4xIDYuNyA2Ljh2MzcuOWgyNi41di00NC45Yy41LTQuNy0uNS05LTIuOS0xMi4zbS02OSAyOS40Yy4zLTIuMS43LTQuMy43LTYuNWEzMy41IDMzLjUgMCAwIDAtMzMuMS0zMy43Yy0xOC41IDAtMzMuMSAxNS0zMy4xIDMzLjcgMCAxOC42IDE0LjkgMzQgMzMuMSAzNCAxMi41IDAgMjMuNC03IDI4LjktMTcuNGgtMjIuOWMtNS44IDAtMTAuNi0xLjQtMTAuNi03LjVWMzg3aDM3em0tMzcuMS0xMy44di0xLjdjMC00LjggMy44LTguNyA4LjItOC43IDQuOCAwIDguMiAzLjkgOC4yIDguNXYxLjdsLTE2LjQuMnptLTIwNSA2OS4yaDIzLjdjNy4yIDAgMTMuOC0yLjYgMTkuMy02LjcgNy4yLTUuOCAxMi0xNC45IDEyLTI0Ljl2LTYxLjNoLTMwLjhhNDMgNDMgMCAwIDAtMTMuMiAyLjIgMzYgMzYgMCAwIDAtMTAuNiA2LjcgMzEuOCAzMS44IDAgMCAwIDMuOCA0OC41YzEgLjcgMS45IDEuMiAyLjcgMS45IDQuMSAyLjYgOC45IDMuOSAxMy43IDQuMWg3djEuNWMwIDEuNy0uMyAyLjYtMSAzLjItMS43IDIuNi01IDMuMi05LjEgMy4yaC0xOC4xYy42LjYuNiAyMS42LjYgMjEuNnptMjUuMS03Mi41aDcuNXYyMGgtNy43Yy01LjYgMC0xMC4xLTQuNi0xMC4xLTkuOSAwLTUuNiA0LjUtMTAuMSAxMC4zLTEwLjFtLTgxLjUtMjMuNGMtNC4xLTctOS43LTEyLjYtMTcuMS0xNi43LTctNC4xLTE0LjktNi4yLTIyLjktNi4yaC0zNi4xdjkwLjdoMzcuNGM1LjMgMCAxMC45LTEuMiAxNi43LTMuOGE1NCA1NCAwIDAgMCAxNC45LTkuNyA0MSA0MSAwIDAgMCA5LjktMTQuNyA0NS41IDQ1LjUgMCAwIDAgMy4yLTE3LjFjLjUtNy44LTEuNi0xNS4zLTYtMjIuNW0tMjEuOSAyOC45Yy0xIDIuMS0yLjIgMy45LTMuOSA1LjZhMTcuMiAxNy4yIDAgMCAxLTUuOCAzLjhjLTIuMiAxLTQuMyAxLjQtNi41IDEuNGgtMTIuOHYtMzQuN0gyMDNjMy4xIDAgNi4yLjkgOC45IDIuNiAyLjcgMS43IDUgMy44IDYuNyA2LjVzMi42IDUuNiAyLjYgOC43Yy4zIDEuOC0uNCA0LjEtMS4zIDYuMW0tNTMuNSA3NC4zaDIuOVY0NzBoLTIuOXptMjguMiAwaC0yLjR2MTUuOGwtMTMuNi0xNS44aC0yLjR2MjAuMmgyLjV2LTE1LjRsMTMuNyAxNS40aDIuMnptMTcgMS4yYTcuNiA3LjYgMCAwIDAtNC42LTEuNGMtMy44IDAtNi4yIDIuMS02LjIgNS4zIDAgNS4zIDguNyA2IDguNyAxMC4xIDAgMS0xIDIuNi0zLjIgMi42LTEuOSAwLTMuOS0xLTUuMy0yLjl2My44YTkuNyA5LjcgMCAwIDAgNS42IDEuOWMzLjIgMCA1LjYtMi4yIDUuNi01LjMgMC02LjUtOC43LTYuNS04LjctMTAuNCAwLTEuNCAxLjItMi42IDMuMi0yLjYgMS4yIDAgMy4xLjMgNC44IDIuMWwuMS0zLjJ6bTIxLjMtMS4yaC0xNi43djIuNmg2Ljh2MTcuNmgyLjl2LTE3LjZoN3ptNS41IDBoMi45VjQ3MGgtMi45em0yNC45IDBoLTE2Ljl2Mi42aDd2MTcuNmgyLjl2LTE3LjZoN3ptMjIuMiAwaC0yLjl2MTEuOGMwIDEuOS0uMiAzLjItMS4yIDQuMy0xIDEtMi42IDEuNy00LjggMS43LTEuOSAwLTMuMi0uMy00LjMtMS45LTEtMS0xLjItMS45LTEuMi00LjF2LTEyaC0yLjl2MTIuNmMwIDUuMyA0LjEgNy45IDguMiA3LjkgNiAwIDkuMS0zLjIgOS4xLTguMnYtMTIuMXptMjEuNyAwaC0xNi45djIuNmg3djE3LjZoMi45di0xNy42aDd6bTE2LjYgMGgtMTEuNHYyMC4yaDExLjd2LTIuNmgtOC44VjQ2MWg4LjN2LTIuNmgtOC4zdi02LjFoOC41em0xOC42IDEwLjFjMC00LjYgMy4yLTcuNyA3LjktNy43IDQuNiAwIDcuOSAzLjIgNy45IDcuNyAwIDQuMy0zLjIgNy43LTcuOSA3LjdhNy42IDcuNiAwIDAgMS03LjktNy43bS0yLjkgMGMwIDUuMyA0LjEgMTAuNCAxMC44IDEwLjQgNi44IDAgMTAuOS01IDEwLjktMTAuNCAwLTUuNi00LjEtMTAuNC0xMC45LTEwLjQtNi41LjItMTAuOCA0LjgtMTAuOCAxMC40bTM4LjUtMTAuMWgtMTAuOHYyMC4yaDIuOXYtOS4yaDcuOXYtMi44aC03Ljl2LTUuNmg3Ljl6bTI3LjggMGgtMTYuOXYyLjZoN3YxNy42aDIuOXYtMTcuNmg3em0xNi42IDBoLTExLjN2MjAuMmgxMS44di0yLjZINDE0VjQ2MWg4LjR2LTIuNkg0MTR2LTYuMWg4LjR6bTIzLjQgMS40Yy0yLjctMS00LjgtMS43LTYuOC0xLjctNi41IDAtMTEuMSA0LjYtMTEuMSAxMC42IDAgNC4xIDMuMiAxMC4xIDEwLjkgMTAuMSAzLjIgMCA1LjMtLjkgNy41LTEuOVY0NjVhMTMuNyAxMy43IDAgMCAxLTcgMi4yYy00LjggMC04LjItMy4xLTguMi03LjdzMy4yLTcuNyA4LTcuN2MyLjYgMCA0LjYuNyA2LjggMi4xdi0yLjdoLS4xem0yMy4xLTEuNGgtMi44djguOWgtMTEuNHYtOC45aC0yLjl2MjAuMmgyLjl2LTguNmgxMS40djguNmgyLjh6bTI1LjggMGgtMi44djE1LjhsLTEzLjYtMTUuOEg0NzZ2MjAuMmgyLjZ2LTE1LjRsMTMuNyAxNS40aDIuNHptOSAxMC4xYzAtNC42IDMuMi03LjcgNy45LTcuN3M3LjkgMy4yIDcuOSA3LjdjMCA0LjMtMy4yIDcuNy03LjkgNy43YTcuNSA3LjUgMCAwIDEtNy45LTcuN20tMi45IDBjMCA1LjMgNC4xIDEwLjQgMTAuOCAxMC40IDYuOCAwIDEwLjktNSAxMC45LTEwLjQgMC01LjYtNC4xLTEwLjQtMTAuOC0xMC40LTYuOC4yLTEwLjkgNC44LTEwLjkgMTAuNG0zMC42LTEwLjFoLTIuOXYyMC4yaDExLjl2LTIuNmgtOXptMTYuMSAxMC4xYzAtNC42IDMuMi03LjcgNy45LTcuN3M3LjkgMy4yIDcuOSA3LjdjMCA0LjMtMy4yIDcuNy03LjkgNy43YTcuNiA3LjYgMCAwIDEtNy45LTcuN20tMyAwYzAgNS4zIDQuMSAxMC40IDEwLjggMTAuNCA2LjggMCAxMC45LTUgMTAuOS0xMC40IDAtNS42LTQuMS0xMC40LTEwLjgtMTAuNC02LjYgMC0xMC45IDQuOC0xMC45IDEwLjRtNDUuNy4yaC02Ljh2Mi42aDMuOXY0LjFjLTEuNC4zLTIuNy45LTQuMy45LTQuOCAwLTguMi0zLjItOC4yLTcuNyAwLTQuMyAzLjItNy43IDcuOS03LjcgMi42IDAgNC44LjcgNy4yIDEuOXYtMi45Yy0zLjItMS4yLTQuOC0xLjktNy4yLTEuOS02LjIgMC0xMC44IDQuNi0xMC44IDEwLjZzNC42IDEwLjQgMTAuOCAxMC40YzIuNyAwIDUtLjMgNy43LTEuN1Y0NjBoLS4yem0xMy4zLTMuMy01LjUtN2gtMy42bDcuNyA5LjR2MTAuOGgyLjl2LTEwLjRsNy40LTkuOEg2MDl6Ii8+Cjwvc3ZnPgo=');
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-color: #FFFFFF;
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain;
+            -webkit-font-smoothing: subpixel-antialiased;
+            font-smoothing: subpixel-antialiased;
+        }
+
+        #main-container {
+            font-size: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+
+        .emscripten {
+            padding: 0;
+            margin: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            background-color: #00000000;
+        }
+
+        canvas.emscripten {
+            border: 0px none;
+            background: transparent;
+            background-color: #00000000;
+        }
+
+        #description {
+            margin: 10px;
+            padding: 10px;
+            color: #000000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main-container">
+        <div id="description" align="center">
+            <h2>DigiPen Korea Graphics I</h2>
+
+            <div id="container_status" align="center">
+                Loading - please wait ..
+            </div>
+        </div>
+        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+    </div>
+
+    <script type='text/javascript'>
+        var isInitialized = false;
+        var failedToInitialize = false;
+
+        function updateWindowSize() {
+            var w = window,
+                d = document,
+                e = d.documentElement,
+                g = d.getElementsByTagName('body')[0],
+                x = w.innerWidth || e.clientWidth || g.clientWidth,
+                y = w.innerHeight || e.clientHeight || g.clientHeight;
+            Module.setWindowSize(x, y);
+        }
+
+        window.setInterval(function () {
+            if (isInitialized == false) return;
+
+            updateWindowSize();
+
+        }, 500);
+
+        function onkeydown(event) {
+            if (event.ctrlKey ||
+                (event.keyCode >= 112 && event.keyCode <= 123)) {
+                event.stopImmediatePropagation();
+                return;
+            }
+
+            if (event.keyCode == 8 || // Backspace
+                event.keyCode == 9 || // Tab
+                event.keyCode == 46 || // Delete
+                (event.keyCode >= 37 && event.keyCode <= 40)) { // Arrow keys
+                event.preventDefault();
+            }
+        }
+
+        function init() {
+            document.getElementById('container_status').innerHTML = "WebAssembly module initialized successfully!"
+            document.getElementById('container_status').style.color = "#00ff00";
+
+            window.addEventListener('keydown', onkeydown, true);
+            // This enables our app to get keyboard focus when displayed through an iframe
+            // https://supernapie.com/blog/keyboard-focus-in-an-iframe/
+            window.addEventListener('load', function () {
+                window.focus();
+                document.body.addEventListener('click', function (e) {
+                    window.focus();
+                }, false);
+            });
+
+            if (isInitialized == false) {
+                updateWindowSize();
+                isInitialized = true;
+            }
+            {
+                var status = document.getElementById("description");
+                status.hidden = true;
+            }
+        }
+
+        function getQueryParam(parameterName) {
+            const queryParams = new URLSearchParams(window.location.search);
+            return queryParams.get(parameterName);
+        }
+
+        function buildCommandLineArguments() {
+            var param = getQueryParam('start')
+            if (param)
+                return ['--start', param]
+            return []
+        }
+
+        var Module = {
+            arguments: buildCommandLineArguments(),
+            preRun: [(function () { })],
+            postRun: [(function () {
+                if (failedToInitialize) return;
+                init();
+            })],
+            canvas: (function () {
+                var canvas = document.getElementById('canvas');
+                canvas.addEventListener("webglcontextlost", function (e) {
+                    alert('WebGL context lost. You will need to reload the page.'); e.preventDefault();
+                }, false);
+                return canvas;
+            })(),
+            print: function (text) {
+                text = Array.prototype.slice.call(arguments).join(' ');
+                console.log(text);
+            },
+            printErr: function (text) {
+                text = Array.prototype.slice.call(arguments).join(' ');
+                console.error(text);
+            },
+            setStatus: function (text) {
+                if (text) {
+                    console.log("html module status: " + text);
+                }
+            }
+        };
+
+        window.onerror = function (event) {
+            failedToInitialize = true;
+            let reason = JSON.stringify(event);
+            console.log("onerror: " + reason);
+            document.getElementById('container_status').innerHTML = reason;
+            document.getElementById('container_status').innerHTML += '<br>This browser is not supported. Please try a different browser';
+            document.getElementById('container_status').style.color = "#ff0000";
+        };
+    </script>
+
+    {{{ SCRIPT }}}
+</body>
+
+</html>
+
+
+
+================================================
+FILE: Assets/shaders/box-blur.frag
+================================================
+#version 300 es
+precision mediump float;
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+uniform sampler2D uColorTexture;
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+
+uniform int uBlurSize;
+uniform float uSeparation;
+
+void main()
+{
+    FragColor = texture(uColorTexture, vTexCoord);
+    if(uBlurSize <= 0){
+        return;
+    }
+    vec2 tex_size = vec2(textureSize(uColorTexture, 0));
+    FragColor = vec4(vec3(0.0), FragColor.a);
+    // -size to +size, (2*size+1) * (2*size+1)
+    for(int i = -uBlurSize; i <= uBlurSize; ++i)
+    {
+        for(int j = -uBlurSize; j < uBlurSize; ++j)
+        {
+            vec2 offset = vec2(i,j) * uSeparation / tex_size;
+            FragColor.rgb += texture(uColorTexture, vTexCoord+offset).rgb;
+        }
+    }
+    float count = (2.0*float(uBlurSize)+1.0);
+    count *= count;
+    FragColor.rgb /= count;
+}
+
+
+================================================
+FILE: Assets/shaders/chromatic-aberration.frag
+================================================
+#version 300 es
+precision mediump float;
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+uniform sampler2D uColorTexture;
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+
+uniform vec2 uMouseFocusPoint; // measure in texture coords 0-1
+
+void main()
+{
+    float red_offset = 0.009;
+    float green_offset = 0.006;
+    float blue_offset = -0.006;
+    vec2 direction = vTexCoord - uMouseFocusPoint;
+    FragColor.r = texture(uColorTexture, vTexCoord + (direction*vec2(red_offset))).r;
+    FragColor.g = texture(uColorTexture, vTexCoord + (direction*vec2(green_offset))).g;
+    FragColor.b = texture(uColorTexture, vTexCoord + (direction*vec2(blue_offset))).b;
+    FragColor.a = texture(uColorTexture, vTexCoord).a;
+
+}
+
+
+================================================
+FILE: Assets/shaders/gamma-correct.frag
+================================================
+#version 300 es
+precision mediump float;
+/**
+ * \file
+ * \author Jonathan Holmes
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+uniform sampler2D uColorTexture;
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+
+uniform float uGamma;
+
+void main()
+{
+    FragColor = texture(uColorTexture, vTexCoord);
+    FragColor.rgb = pow(FragColor.rgb, vec3(uGamma));
+}
+
+
+
+================================================
+FILE: Assets/shaders/pixelize.frag
+================================================
+#version 300 es
+precision mediump float;
+/**
+ * \file
+ * \author Taekyung HoeWhore
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+uniform sampler2D uColorTexture;
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+
+uniform int pixelSize;
+
+void main() {
+    FragColor = texture(uColorTexture, vTexCoord);
+
+  // Must be odd.
+  if(pixelSize % 2 == 0 || pixelSize <= 1) 
+    return;
+
+  vec2 tex_size = vec2(textureSize(uColorTexture, 0));
+  vec2 texCoord = gl_FragCoord.xy / tex_size;
+
+
+  float x = float(int(gl_FragCoord.x) % pixelSize);
+  float y = float(int(gl_FragCoord.y) % pixelSize);
+
+        x = floor(float(pixelSize) / 2.0) - x;
+        y = floor(float(pixelSize) / 2.0) - y;
+
+        x = gl_FragCoord.x + x;
+        y = gl_FragCoord.y + y;
+
+  vec2 uv = vec2(x, y) / tex_size;
+
+  FragColor = texture(uColorTexture, uv);
+}
+
+
+================================================
+FILE: Assets/shaders/sdf.frag
+================================================
+#version 300 es
+precision mediump float;
+
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+in vec2 vTestPoint;
+
+layout(location = 0) out vec4 FragColor;
+
+uniform vec4 uFillColor;
+uniform vec4 uLineColor;
+uniform vec2 uWorldSize;
+uniform float uLineWidth;
+uniform int uShape;
+
+float sdCircle( vec2 p, float r )
+{
+    return length(p) - r;
+}
+
+float sdRectangle(vec2 point, vec2 half_dim)
+{
+    vec2 distance_to_edges = abs(point) - half_dim;
+    float outside_distance = length(max(distance_to_edges, 0.0));
+    float inside_distance = min(max(distance_to_edges.x, distance_to_edges.y), 0.0);
+    float sdf = outside_distance + inside_distance;
+    return sdf;
+}
+
+// evalute the color based off sdf
+vec4 evaluate_color(float sdf)
+{
+    float fill_alpha = (sdf < 0.0) ? 1.0 : 0.0;
+    float outline_alpha = (abs(sdf) < 0.5*uLineWidth) ? 1.0 : 0.0;
+
+    vec4 fill_color = vec4(uFillColor.rgb, fill_alpha * uFillColor.a);
+    vec4 line_color = vec4(uLineColor.rgb, outline_alpha * uLineColor.a);
+
+    if(line_color.a > 0.0)
+        return line_color;
+    return fill_color;
+}
+
+void main()
+{
+ // based off shape evaluate the sdf
+    float sdf = 0.0;
+    if(uShape == 0)
+    {
+        float radius = min(uWorldSize.x, uWorldSize.y)*0.5;
+        sdf = sdCircle(vTestPoint, radius);
+    }else if(uShape == 1)
+    {
+        sdf = sdRectangle(vTestPoint, 0.5*uWorldSize);
+    }
+ // get the color
+    vec4 color = evaluate_color(sdf);
+    if(color.a <= 0.0)
+        discard;
+ // set color, discard empty space
+    FragColor = color;
+}
+
+
+
+================================================
+FILE: Assets/shaders/sdf.vert
+================================================
+#version 300 es
+
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+layout(location = 0) in vec2 aVertexPosition;
+
+uniform mat3 uModel;
+uniform mat3 uToNDC;
+uniform vec2 uSDFScale;
+
+out vec2 vTestPoint;
+
+
+void main()
+{
+    vec3 ndc_point = uToNDC * uModel * vec3(aVertexPosition, 1.0);
+    gl_Position = vec4(ndc_point.xy, 0.0, 1.0);
+    vTestPoint = aVertexPosition * uSDFScale;
+}
+
+
+
+================================================
+FILE: Assets/shaders/simple-texture.frag
+================================================
+#version 300 es
+
+precision mediump float;
+
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+uniform sampler2D uColorTexture;
+
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 FragColor;
+
+void main()
+{
+    FragColor = texture(uColorTexture, vTexCoord);
+}
+
+
+
+================================================
+FILE: Assets/shaders/simple.vert
+================================================
+#version 300 es
+
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+layout(location = 0) in vec2 aVertexPosition;
+layout(location = 1) in vec2 aTexCoord;
+
+out vec2 vTexCoord;
+
+void main()
+{
+    // Vertices are already in NDC space, just pass through
+    gl_Position = vec4(aVertexPosition, 0.0, 1.0);
+    vTexCoord   = aTexCoord;
+}
+
+
+
+================================================
+FILE: cmake/CompilerWarnings.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+# from here:
+#
+# https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
+
+function(set_project_warnings project_name)
+  option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" TRUE)
+
+  set(MSVC_WARNINGS
+      /W4 # Baseline reasonable warnings
+      /w14242 # 'identifier': conversion from 'type1' to 'type1', possible loss
+              # of data
+      /w14254 # 'operator': conversion from 'type1:field_bits' to
+              # 'type2:field_bits', possible loss of data
+      /w14263 # 'function': member function does not override any base class
+              # virtual member function
+      /w14265 # 'classname': class has virtual functions, but destructor is not
+              # virtual instances of this class may not be destructed correctly
+      /w14287 # 'operator': unsigned/negative constant mismatch
+      /we4289 # nonstandard extension used: 'variable': loop control variable
+              # declared in the for-loop is used outside the for-loop scope
+      /w14296 # 'operator': expression is always 'boolean_value'
+      /w14311 # 'variable': pointer truncation from 'type1' to 'type2'
+      /w14545 # expression before comma evaluates to a function which is missing
+              # an argument list
+      /w14546 # function call before comma missing argument list
+      /w14547 # 'operator': operator before comma has no effect; expected
+              # operator with side-effect
+      /w14549 # 'operator': operator before comma has no effect; did you intend
+              # 'operator'?
+      /w14555 # expression has no effect; expected expression with side- effect
+      /w14619 # pragma warning: there is no warning number 'number'
+      /w14640 # Enable warning on thread un-safe static member initialization
+      /w14826 # Conversion from 'type1' to 'type_2' is sign-extended. This may
+              # cause unexpected runtime behavior.
+      /w14905 # wide string literal cast to 'LPSTR'
+      /w14906 # string literal cast to 'LPWSTR'
+      /w14928 # illegal copy-initialization; more than one user-defined
+              # conversion has been implicitly applied
+      /permissive- # standards conformance mode for MSVC compiler.
+      /wd4201 # warning C4201 : nonstandard extension used : nameless struct / union
+  )
+
+  set(CLANG_WARNINGS
+      -Wall
+      -Wextra # reasonable and standard
+      -Wshadow # warn the user if a variable declaration shadows one from a
+               # parent context
+      $<$<COMPILE_LANGUAGE:CXX>:-Wnon-virtual-dtor> # warn the user if a class with virtual functions has a
+                         # non-virtual destructor. This helps catch hard to
+                         # track down memory errors
+      $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast> # warn for c-style casts
+      -Wcast-align # warn for potential performance problem casts
+      -Wunused # warn on anything being unused
+      $<$<COMPILE_LANGUAGE:CXX>:-Woverloaded-virtual> # warn if you overload (not override) a virtual
+                           # function
+      -Wpedantic # warn if non-standard C++ is used
+      -Wconversion # warn on type conversions that may lose data
+      -Wsign-conversion # warn on sign conversions
+      -Wnull-dereference # warn if a null dereference is detected
+      -Wdouble-promotion # warn if float is implicit promoted to double
+      -Wformat=2 # warn on security issues around functions that format output
+                 # (ie printf)
+    #   -Wno-gnu-anonymous-struct # allow anonymous-struct
+    #   -Wno-nested-anon-types
+  )
+
+  if (WARNINGS_AS_ERRORS)
+    set(CLANG_WARNINGS ${CLANG_WARNINGS} -Werror)
+    set(MSVC_WARNINGS ${MSVC_WARNINGS} /WX)
+  endif()
+
+  set(GCC_WARNINGS
+      ${CLANG_WARNINGS}
+      -Wmisleading-indentation # warn if indentation implies blocks where blocks
+                               # do not exist
+      -Wduplicated-cond # warn if if / else chain has duplicated conditions
+      -Wduplicated-branches # warn if if / else branches have duplicated code
+      -Wlogical-op # warn about logical operations being used where bitwise were
+                   # probably wanted
+      $<$<COMPILE_LANGUAGE:CXX>:-Wuseless-cast> # warn if you perform a cast to the same type
+  )
+
+  if(MSVC)
+    set(PROJECT_WARNINGS ${MSVC_WARNINGS})
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+    set(PROJECT_WARNINGS ${CLANG_WARNINGS})
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(PROJECT_WARNINGS ${GCC_WARNINGS})
+  else()
+    message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
+  endif()
+
+  target_compile_options(${project_name} INTERFACE ${PROJECT_WARNINGS})
+
+endfunction()
+
+
+
+================================================
+FILE: cmake/Dependencies.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+include(FetchContent)
+
+include(cmake/dependencies/OpenGL.cmake)    #defines target the_opengl
+include(cmake/dependencies/GLEW.cmake)      # defines target the_glew
+include(cmake/dependencies/SDL2.cmake)      # defines target the_sdl2
+include(cmake/dependencies/DearImGUI.cmake) # defines target the_imgui   ;  note DearImGUI.cmake depends on SDL2.cmake
+include(cmake/dependencies/GSL.cmake)       # defines target the_gsl
+include(cmake/dependencies/STB.cmake)       # defines target the_gsl
+
+add_library(dependencies INTERFACE)
+
+target_link_libraries(dependencies INTERFACE 
+    the_opengl
+    the_glew
+    the_sdl2
+    the_imgui
+    the_gsl
+    the_stb
+)
+
+
+
+================================================
+FILE: cmake/StandardProjectSettings.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+include(FetchContent)
+set(FETCHCONTENT_QUIET TRUE)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+# https://cmake.org/cmake/help/latest/policy/CMP0135.html
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+# Set a default build type if none was specified
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE
+      Release
+      CACHE STRING "Choose the type of build." FORCE)
+  
+endif()
+
+if(NOT CMAKE_CONFIGURATION_TYPES)
+# Set the possible values of build type for cmake-gui, ccmake
+  set_property(
+    CACHE CMAKE_BUILD_TYPE
+    PROPERTY STRINGS
+             "Debug"
+             "Release"
+             "MinSizeRel"
+             "RelWithDebInfo")
+endif()
+
+# Generate compile_commands.json to make it easier to work with clang based tools
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Put exe targets into the root of the build folder
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config} config_upper)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config_upper} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+endforeach()
+
+
+
+================================================
+FILE: cmake/dependencies/DearImGUI.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+# Depends on SDL2 and OpenGL
+
+FetchContent_Declare(
+    dearimgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG a28cb615ff2c2ed8901397b00762d557cae24760 # latest from docking branch as of 8/22/2025
+)
+FetchContent_MakeAvailable(dearimgui)
+
+add_library(the_imgui STATIC
+    ${dearimgui_SOURCE_DIR}/imgui.cpp ${dearimgui_SOURCE_DIR}/imgui.h
+    ${dearimgui_SOURCE_DIR}/imconfig.h ${dearimgui_SOURCE_DIR}/imgui_internal.h
+    ${dearimgui_SOURCE_DIR}/imgui_draw.cpp
+    ${dearimgui_SOURCE_DIR}/imgui_tables.cpp
+    ${dearimgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp ${dearimgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
+    ${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
+    ${dearimgui_SOURCE_DIR}/backends/imgui_impl_sdl2.h
+)
+
+target_include_directories(the_imgui SYSTEM PUBLIC ${dearimgui_SOURCE_DIR} ${dearimgui_SOURCE_DIR}/backends)
+target_link_libraries(the_imgui PRIVATE the_sdl2)
+
+
+
+================================================
+FILE: cmake/dependencies/GLEW.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+# We will use GLEW for OpenGL bindings
+# Linux platforms have a very easy way to install these depenencies and expose them to compilers so,
+#   we will use the builtin find_package
+# Emscripten has their own port of GLEW builtin. We don't even need to specify any flags.
+#   Windows does not have a simple way to get it, so we download official windows binaries and link against those
+
+
+add_library(the_glew INTERFACE)
+
+if(NOT WIN32 AND NOT EMSCRIPTEN)
+    # on    Mac : brew install glew
+    # on Ubuntu : apt install libglew-dev
+    set(GLEW_STATIC_LIBS TRUE)
+    find_package(GLEW REQUIRED)
+    target_link_libraries(the_glew INTERFACE ${GLEW_STATIC_LIBRARIES} $<$<PLATFORM_ID:Linux>:GL>)
+    target_include_directories(the_glew SYSTEM INTERFACE ${GLEW_INCLUDE_DIRS})
+elseif(WIN32)
+    # download binaries for GLEW for windows x64
+    FetchContent_Declare(
+        glew
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        URL "https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0-win32.zip"
+    )
+    FetchContent_MakeAvailable(glew)
+
+    target_link_directories(the_glew INTERFACE ${glew_SOURCE_DIR}/lib/Release/x64)
+    target_link_libraries(the_glew INTERFACE glew32s) # note that is the name of the glew32s.lib file we need to link in
+    target_include_directories(the_glew SYSTEM INTERFACE ${glew_SOURCE_DIR}/include)
+    target_compile_definitions(the_glew INTERFACE GLEW_STATIC)
+endif()
+
+
+
+================================================
+FILE: cmake/dependencies/GSL.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+FetchContent_Declare(
+    gsl
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    URL https://github.com/microsoft/GSL/archive/refs/tags/v4.2.0.tar.gz
+    URL_HASH MD5=5f3d2f7ef9c6351503c0c8f1f9390144
+)
+FetchContent_MakeAvailable(gsl)
+
+add_library(the_gsl INTERFACE)
+target_include_directories(the_gsl SYSTEM INTERFACE ${gsl_SOURCE_DIR}/include)
+
+
+
+================================================
+FILE: cmake/dependencies/OpenGL.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+# most platforms should have OpenGL already available
+# debian linux : libgl1-mesa-dev (not that installing GLEW installs this as a dependency)
+find_package(OpenGL REQUIRED)
+
+add_library(the_opengl INTERFACE)
+target_link_libraries(the_opengl INTERFACE ${OPENGL_LIBRARIES})
+
+if(EMSCRIPTEN)
+    # We want WebGL 2
+    # WebGL 2 is almost the same as OpenGL ES 3 which is almost the same as OpenGL 3.3
+    # MIN_WEBGL_VERSION=2           - Specifies the lowest WebGL version to target. Pass MIN_WEBGL_VERSION=2 to drop support for WebGL 1.0
+    # MAX_WEBGL_VERSION=2           - Specifies the highest WebGL version to target. Pass -sMAX_WEBGL_VERSION=2 to enable targeting WebGL 2.
+    # https://emscripten.org/docs/porting/multimedia_and_graphics/OpenGL-support.html
+    
+    target_link_options(the_opengl INTERFACE -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2)
+    target_compile_definitions(the_opengl INTERFACE IS_WEBGL2)
+
+endif()
+
+
+
+
+================================================
+FILE: cmake/dependencies/SDL2.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+# We will be using SDL2 for windowing & gl context creation
+# Linux platforms have a very easy way to install these depenencies and expose them to compilers so,
+#   we will use the builtin find_package
+# Emscripten has their own port of SDL2 builtin. We can just #include, define --use-port=sdl2, and start using it.
+#   Windows does not have a simple way to get it, so we download official windows binaries and link against those
+
+add_library(the_sdl2 INTERFACE)
+
+if(WIN32)
+    # download binaries for SDL2 for windows x64
+    FetchContent_Declare(
+        sdl2
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        URL https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-devel-2.32.8-VC.zip
+        URL_HASH MD5=13172db35a91f3baac59e47187a2ebbb
+    )
+    FetchContent_MakeAvailable(sdl2)
+
+    target_include_directories(the_sdl2 SYSTEM INTERFACE ${sdl2_SOURCE_DIR}/include)
+
+    target_link_directories(the_sdl2 INTERFACE ${sdl2_SOURCE_DIR}/lib/x64)
+    target_link_libraries(the_sdl2 INTERFACE SDL2)
+    target_compile_definitions(the_sdl2 INTERFACE SDL_MAIN_HANDLED)
+
+    # Define a custom target to copy SDL2.dll to the build directory
+    set(TEMP_EXE_FOLDER $<IF:$<BOOL:${CMAKE_RUNTIME_OUTPUT_DIRECTORY}>,${CMAKE_RUNTIME_OUTPUT_DIRECTORY},${CMAKE_BINARY_DIR}>)
+    add_custom_target(copy_sdl2_dll
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${sdl2_SOURCE_DIR}/lib/x64/SDL2.dll
+            ${TEMP_EXE_FOLDER}/SDL2.dll
+            DEPENDS ${sdl2_SOURCE_DIR}/lib/x64/SDL2.dll
+            COMMENT "Copying SDL2.dll to executable directory"
+    )
+    add_dependencies(the_sdl2 copy_sdl2_dll)
+else()
+    if(EMSCRIPTEN)
+        # --use-port=sdl2                     - we want version 2 rather than SDL1
+        # https://emscripten.org/docs/tools_reference/settings_reference.html?highlight=use_sdl#use-sdl
+        target_compile_options(the_sdl2 INTERFACE --use-port=sdl2)
+        target_link_options(the_sdl2 INTERFACE --use-port=sdl2)
+    else()
+        # on    Mac : brew install sdl2
+        # on Ubuntu : apt install libsdl2-dev
+        find_package(SDL2 REQUIRED)
+        target_include_directories(the_sdl2 SYSTEM INTERFACE ${SDL2_INCLUDE_DIRS})
+        target_link_libraries(the_sdl2 INTERFACE ${SDL2_LIBRARIES})
+    endif()
+endif()
+
+
+
+================================================
+FILE: cmake/dependencies/STB.cmake
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+FetchContent_Declare(
+    stb_github
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    # latest of master branch as of 8/22/2025
+    GIT_TAG f58f558c120e9b32c217290b80bad1a0729fbb2c
+)
+
+FetchContent_MakeAvailable(stb_github)
+
+if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/stb_implementation.cpp)
+    set(STB_IMPLEMENTATION_CODE "// This file is auto-generated from cmake/depenendencies/STB.cmake
+    #define STB_IMAGE_IMPLEMENTATION
+    #include \"stb_image.h\"
+    #define STB_PERLIN_IMPLEMENTATION
+    #include \"stb_perlin.h\"
+    //#include \"stb_vorbis.c\"
+    ")
+
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/stb_implementation.cpp ${STB_IMPLEMENTATION_CODE})
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/stb_implementation.cpp PROPERTIES GENERATED TRUE)
+endif()
+
+add_library(the_stb STATIC ${CMAKE_CURRENT_BINARY_DIR}/stb_implementation.cpp)
+target_include_directories(the_stb SYSTEM PUBLIC ${stb_github_SOURCE_DIR})
+
+
+
+
+================================================
+FILE: docs/DebuggingWeb.md
+================================================
+Error reading file with 'cp949': 'cp949' codec can't decode byte 0xe2 in position 1977: illegal multibyte sequence
+
+
+================================================
+FILE: docs/DevEnvironment.md
+================================================
+# Environment Setup
+
+## Windows OS Setup
+
+Install the following tools:
+
+1. [**Visual Studio**](https://visualstudio.microsoft.com/downloads/)
+   - Select C++-related packages during installation.
+2. [**CMake**](https://cmake.org/download/)
+   - Ensure it is available on the command line (`PATH`) if prompted.
+3. [**Git SCM**](https://git-scm.com/downloads)
+   - Ensure it is available on the command line (`PATH`) if prompted.
+4. [**Ninja Build**](https://github.com/ninja-build/ninja/releases)
+   - Manually add it to the command line (`PATH`).
+
+## Web / Emscripten Setup
+
+### Important Notice
+
+**Do not use the Windows version of Emscripten for production.** Due to line-ending differences, generated output files may not work properly when uploaded to a web server. Instead, use Emscripten on a Linux-based OS such as macOS or Ubuntu (_[WSL](https://learn.microsoft.com/en-us/windows/wsl/install) works too_).
+
+### Installation Steps
+
+1. Review [Emscripten Platform-Specific Notes](https://emscripten.org/docs/getting_started/downloads.html#platform-notes-installation-instructions-sdk) for any prerequisites, such as Python 3.
+2. Open a terminal and run:
+
+```sh
+   # Clone the emsdk repository
+   git clone https://github.com/emscripten-core/emsdk.git
+
+   # Navigate to the directory
+   cd emsdk
+
+   # Fetch the latest version of the SDK (if needed)
+   git pull
+
+   # Install the SDK tools
+   ./emsdk install 4.0.13
+
+   # Activate this version for the current user
+   ./emsdk activate 4.0.13
+
+   # Set environment variables for the current terminal session
+   source ./emsdk_env.sh
+```
+
+### Emscripten Setup on Windows
+
+If your main development platform is Windows, you should use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for creating `Release` builds.
+
+However, for debugging with breakpoints, `WSL` may not work reliably. In this case, install the Windows version of Emscripten in your **User** directory (e.g., `C:/Users/<your-username>`). Follow these steps:
+
+```sh
+# Navigate to your User directory
+cd %USERPROFILE%
+
+# Clone the emsdk repository
+git clone https://github.com/emscripten-core/emsdk.git
+
+# Navigate to the directory
+cd emsdk
+
+# Install the SDK tools
+emsdk install 4.0.13
+
+# Activate this version
+emsdk activate 4.0.13
+```
+
+For more details on debugging, see [Web Debugging](DebuggingWeb.md).
+
+## Ubuntu / Debian OS Setup
+
+### Install Required Tools
+
+You need **GNU development tools** such as `make`, `git`, and other dependencies:
+
+```sh
+sudo apt install build-essential git cmake ninja-build libsdl2-dev libglew-dev libopenal-dev
+```
+
+## macOS Setup
+
+### Install Xcode
+
+Xcode is the integrated development environment (IDE) for macOS and includes necessary C++ tools.
+
+1. Open the **App Store** and search for "Xcode" to install it.
+2. Launch Xcode after installation to complete the setup.
+3. Open **Terminal** (Applications > Utilities or use Spotlight Search).
+4. Run the following command to install Command Line Tools:
+
+   ```sh
+   xcode-select --install
+   ```
+5. Follow the on-screen instructions.
+
+### Install Development Tools & Libraries
+
+1. **Install Homebrew** (if not already installed):
+   - Visit [Homebrew's website](https://brew.sh) and follow the installation instructions.
+
+2. **Install CMake, SDL2, and GLEW using Homebrew**:
+   ```sh
+   brew install cmake ninja sdl2 glew openal-soft
+   ```
+
+This will install the required development tools and dependencies automatically.
+
+
+
+================================================
+FILE: source/README.md
+================================================
+# Source Start - Simple Farm Scene
+
+This folder contains a simplified starting point for the Post-Processing FX project.
+
+## What's Included
+
+This version includes:
+- **Farm Scene Renderer**: Draws the animated farm scene with SDF shapes
+- **Basic Offscreen Framebuffer**: Simple non-multisampled framebuffer
+- **Simple Texture Shader**: Uses `simple-texture.frag` to display the framebuffer
+- **No Post-Processing**: No post-processing pipeline or effects
+- **No MSAA**: No multisampling support
+
+## Purpose
+
+This is designed as a **starting point for live coding demonstrations** where you can:
+
+1. **Add MSAA Support**: Incrementally add multisampling to the `OffscreenFramebuffer` class
+   - Add MSAA framebuffer and renderbuffer
+   - Add resolve functionality
+   - Add UI controls for MSAA settings
+
+2. **Add Post-Processing Effects**: Build the post-processing pipeline step by step
+   - Create `PostProcessingPipeline` class
+   - Add individual effects (Box Blur, Gamma Correction, Chromatic Aberration)
+   - Chain effects together
+   - Add UI controls for each effect
+
+## Key Differences from Full Version
+
+### OffscreenFramebuffer
+**Simplified:**
+- Single framebuffer with texture attachment
+- `Initialize(width, height)` - no MSAA parameters
+- `GetTexture()` - direct texture access
+- No resolve step needed
+
+**Full Version:**
+- Dual framebuffer system (MSAA + resolve)
+- `Initialize(width, height, use_msaa, msaa_samples)`
+- `ResolveAndGetTexture()` - blits MSAA to resolve buffer
+- `SetMSAA()` to toggle MSAA at runtime
+
+### demo.cpp
+**Simplified:**
+- Renders scene to offscreen buffer
+- Displays buffer directly to screen using `simple-texture.frag`
+- Basic ImGui controls (zoom, animation)
+- ~180 lines of code
+
+**Full Version:**
+- Adds MSAA settings UI
+- Adds post-processing pipeline
+- Adds effect-specific UI controls (blur, gamma, chromatic aberration)
+- Shows effect output textures
+- ~400 lines of code
+
+## Building
+
+To build with this starting point instead of the full source:
+
+1. Modify the root `CMakeLists.txt` to use `source_start` instead of `source`:
+   ```cmake
+   # Change this line:
+   add_subdirectory(source)
+   # To:
+   add_subdirectory(source_start)
+   ```
+
+2. Reconfigure and build your project as normal.
+
+## Live Coding Steps
+
+Suggested order for live coding demonstration:
+
+### Step 1: Add MSAA to Framebuffer
+1. Add MSAA framebuffer and renderbuffer members
+2. Add MSAA parameters to `Initialize()`
+3. Implement `createMSAAFramebuffer()`
+4. Implement `resolveMSAA()` and `ResolveAndGetTexture()`
+5. Update `BindForRendering()` to choose correct target
+
+### Step 2: Add MSAA UI Controls
+1. Add MSAA enable checkbox
+2. Add MSAA sample count dropdown
+3. Wire up `SetMSAA()` to update framebuffer
+
+### Step 3: Create Post-Processing Pipeline
+1. Create `PostProcessingPipeline.hpp` and `.cpp`
+2. Implement fullscreen quad rendering
+3. Implement framebuffer creation for effects
+4. Implement effect chaining in `Apply()`
+
+### Step 4: Add Post-Processing Effects
+1. Add Box Blur effect with UI controls
+2. Add Gamma Correction effect with UI controls
+3. Add Chromatic Aberration effect with UI controls
+4. Add effect output texture visualization
+
+## Files in This Folder
+
+- `demo.cpp` - Simplified main demo code
+- `OffscreenFramebuffer.hpp/cpp` - Basic framebuffer (no MSAA)
+- `FarmSceneRenderer.hpp/cpp` - Farm scene renderer (unchanged)
+- `main.cpp` - Main entry point (unchanged)
+- `Shader.hpp/cpp` - Shader utilities (unchanged)
+- `Path.hpp/cpp` - Asset path utilities (unchanged)
+- `ImGuiHelper.hpp/cpp` - ImGui integration (unchanged)
+- `Handle.hpp` - OpenGL handle type alias (unchanged)
+- `CMakeLists.txt` - Build configuration (PostProcessingPipeline removed)
+
+
+
+================================================
+FILE: source/CMakeLists.txt
+================================================
+# author Rudy Castan
+# date 2025 Fall
+# CS200 Computer Graphics I
+# copyright DigiPen Institute of Technology
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(SOURCE_CODE 
+
+    demo.cpp
+    FarmSceneRenderer.hpp FarmSceneRenderer.cpp
+    Handle.hpp
+    ImGuiHelper.hpp ImGuiHelper.cpp
+    main.cpp
+    OffscreenFramebuffer.hpp OffscreenFramebuffer.cpp
+    Path.hpp Path.cpp
+    PostProcessingPipeline.hpp PostProcessingPipeline.cpp
+    Shader.hpp Shader.cpp
+)
+
+add_executable(cs200_fun ${SOURCE_CODE})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_CODE})
+
+target_link_libraries(cs200_fun PRIVATE project_options dependencies)
+target_include_directories(cs200_fun PRIVATE .)
+
+# Check the IS_DEVELOPER_VERSION cache variable
+# This is set by the cmake configure preset
+if (IS_DEVELOPER_VERSION)
+    target_compile_definitions(cs200_fun PRIVATE DEVELOPER_VERSION)
+endif()
+
+if(EMSCRIPTEN)
+
+    # https://emscripten.org/docs/tools_reference/settings_reference.html
+    # ASSERTIONS=1                  - we want asserts to work
+    # WASM=1                        - we want web assembly generated rather than just javascript
+    # DISABLE_EXCEPTION_CATCHING=0  - we are using exceptions so let's not disable them
+    # ALLOW_MEMORY_GROWTH=1         - we don't know exactly how much heap space we'll need so allow it to grow
+    # EXIT_RUNTIME=1                - have exiting actually stop the program
+    # SINGLE_FILE=1                 - generate everything into one html file
+    # --embed-file                  - https://emscripten.org/docs/tools_reference/emcc.html#emcc-embed-file
+    # --use-preload-cache           - help with faster reloads : https://emscripten.org/docs/compiling/Deploying-Pages.html#providing-a-quick-second-time-load
+    # -lembind                      - to call c++ from javascript https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html
+    # --shell-file                  - to customize the webpage https://emscripten.org/docs/compiling/Deploying-Pages.html#build-files-and-custom-shell
+    target_link_options(cs200_fun PRIVATE 
+    -sASSERTIONS=$<$<BOOL:${IS_DEVELOPER_VERSION}>:1>$<$<NOT:$<BOOL:${IS_DEVELOPER_VERSION}>>:0>
+    -sWASM=1 
+    -sDISABLE_EXCEPTION_CATCHING=0 
+    -sALLOW_MEMORY_GROWTH=1 
+    -sEXIT_RUNTIME=1 
+    -sSINGLE_FILE=1 
+    --embed-file ${CMAKE_SOURCE_DIR}/Assets@/Assets
+    --use-preload-cache
+    -lembind
+    --shell-file ${CMAKE_SOURCE_DIR}/app_resources/web/index_shell.html
+    )
+
+    set_target_properties(cs200_fun PROPERTIES SUFFIX ".html")
+elseif(WIN32)
+
+    target_link_options(cs200_fun PRIVATE 
+        $<IF:$<BOOL:${IS_DEVELOPER_VERSION}>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>
+        /ENTRY:mainCRTStartup)
+
+    set(ICON_RC ${CMAKE_CURRENT_BINARY_DIR}/app.rc)
+    if(NOT EXISTS ${ICON_RC})
+        set(ICON_FILE ${CMAKE_SOURCE_DIR}/app_resources/windows/icon.ico)
+        file(WRITE ${ICON_RC} "IDR_MAINFRAME ICON \"${ICON_FILE}\"\nIDI_ICON1 ICON DISCARDABLE \"${ICON_FILE}\"")
+    endif()
+
+    target_sources(cs200_fun PRIVATE ${ICON_RC})
+
+endif()
+
+
+
+================================================
+FILE: source/demo.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \author Taekyung Ho
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "FarmSceneRenderer.hpp"
+#include "OffscreenFramebuffer.hpp"
+#include "Path.hpp"
+#include "PostProcessingPipeline.hpp"
+#include "Shader.hpp"
+#include <GL/glew.h>
+#include <SDL.h>
+#include <array>
+#include <imgui.h>
+#include <iostream>
+#include <string>
+#include <vector>
+
+extern int gWidth;
+extern int gHeight;
+
+
+FarmSceneRenderer      gFarmScene;
+float                  gZoom = 1.0f;
+OffscreenFramebuffer   gOffscreenBuffer;
+PostProcessingPipeline gPostProcessing;
+
+
+OpenGL::CompiledShader gScreenShader;
+OpenGL::Handle         gScreenVAO;
+OpenGL::Handle         gScreenVBO;
+GLsizei                gScreenVertexCount = 0;
+
+
+float gAnimationTime  = 0.0f;
+bool  gPauseAnimation = false;
+
+
+bool  gEnablePostFX              = true;
+bool  gUseMSAA                   = true;
+int   gMSAASamples               = 4;
+float gBoxBlurSize               = 2.0f;
+float gBoxBlurSeparation         = 1.0f;
+float gGammaValue                = 2.2f;
+float gChromaticAberrationMouseX = 0.5f;
+float gChromaticAberrationMouseY = 0.5f;
+int   gPixelSize                 = 5;
+
+void setupScreenTriangle()
+{
+    struct ScreenVertex
+    {
+        float x, y;
+        float u, v;
+    };
+
+    const ScreenVertex vertices[] = {
+        { -1.0f, -1.0f, 0.0f, 0.0f },
+        {  3.0f, -1.0f, 2.0f, 0.0f },
+        { -1.0f,  3.0f, 0.0f, 2.0f },
+    };
+
+    gScreenVertexCount = static_cast<GLsizei>(std::ssize(vertices));
+
+    glGenBuffers(1, &gScreenVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, gScreenVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenVertexArrays(1, &gScreenVAO);
+    glBindVertexArray(gScreenVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, gScreenVBO);
+
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), nullptr);
+    glVertexAttribDivisor(0, 0);
+
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), reinterpret_cast<void*>(2 * sizeof(float)));
+    glVertexAttribDivisor(1, 0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void demo_setup()
+{
+    gFarmScene.Initialize();
+
+    const auto use_msaa = gUseMSAA ? OffscreenFramebuffer::MSAA::True : OffscreenFramebuffer::MSAA::False;
+    gOffscreenBuffer.Initialize(gWidth, gHeight, use_msaa, gMSAASamples);
+
+
+    const std::filesystem::path screen_vert = assets::locate_asset("Assets/shaders/simple.vert");
+    const std::filesystem::path screen_frag = assets::locate_asset("Assets/shaders/simple-texture.frag");
+    gScreenShader                           = OpenGL::CreateShader(screen_vert, screen_frag);
+
+    setupScreenTriangle();
+
+
+    gPostProcessing.Initialize(gWidth, gHeight);
+
+    {
+        const std::filesystem::path box_blur_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+        const std::filesystem::path box_blur_frag   = assets::locate_asset("Assets/shaders/box-blur.frag");
+        auto                        box_blur_shader = OpenGL::CreateShader(box_blur_vert, box_blur_frag);
+
+        gPostProcessing.AddEffect(PostProcessingEffect(
+            "Box Blur", PostProcessingEffect::Enable::False, box_blur_shader,
+            [](const OpenGL::CompiledShader& shader)
+            {
+                glUniform1i(shader.UniformLocations.at("uBlurSize"), static_cast<int>(gBoxBlurSize));
+                glUniform1f(shader.UniformLocations.at("uSeparation"), gBoxBlurSeparation);
+            }));
+    }
+
+    //{
+    //    const std::filesystem::path gamma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path gamma_frag   = assets::locate_asset("Assets/shaders/gamma-correct.frag");
+    //    auto                        gamma_shader = OpenGL::CreateShader(gamma_vert, gamma_frag);
+
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Gamma Correction", PostProcessingEffect::Enable::True, gamma_shader, [](const OpenGL::CompiledShader& shader) { glUniform1f(shader.UniformLocations.at("uGamma"), gGammaValue); }));
+    //}
+
+    //{
+    //    const std::filesystem::path chroma_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path chroma_frag   = assets::locate_asset("Assets/shaders/chromatic-aberration.frag");
+    //    auto                        chroma_shader = OpenGL::CreateShader(chroma_vert, chroma_frag);
+
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Chromatic Aberration", PostProcessingEffect::Enable::True, chroma_shader,
+    //        [](const OpenGL::CompiledShader& shader) { glUniform2f(shader.UniformLocations.at("uMouseFocusPoint"), gChromaticAberrationMouseX, gChromaticAberrationMouseY); }));
+    //}
+    //{
+    //    const std::filesystem::path pixel_vert   = assets::locate_asset("Assets/shaders/simple.vert");
+    //    const std::filesystem::path pixel_frag   = assets::locate_asset("Assets/shaders/pixelize.frag");
+    //    auto                        pixel_shader = OpenGL::CreateShader(pixel_vert, pixel_frag);
+
+    //    gPostProcessing.AddEffect(PostProcessingEffect(
+    //        "Pixelization", PostProcessingEffect::Enable::True, pixel_shader, [](const OpenGL::CompiledShader& shader) { glUniform1i(shader.UniformLocations.at("pixelSize"), gPixelSize); })); // must be odd
+    //}
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (gUseMSAA)
+    {
+        glEnable(GL_MULTISAMPLE);
+    }
+}
+
+void demo_shutdown()
+{
+    gFarmScene.Shutdown();
+    gOffscreenBuffer.Shutdown();
+    gPostProcessing.Shutdown();
+
+    if (gScreenVAO != 0)
+    {
+        glDeleteVertexArrays(1, &gScreenVAO);
+        gScreenVAO = 0;
+    }
+    if (gScreenVBO != 0)
+    {
+        glDeleteBuffers(1, &gScreenVBO);
+        gScreenVBO = 0;
+    }
+    if (gScreenShader.Shader != 0)
+    {
+        glDeleteProgram(gScreenShader.Shader);
+        gScreenShader.Shader = 0;
+    }
+}
+
+void demo_draw()
+{
+    static int last_width  = 0;
+    static int last_height = 0;
+    if (gWidth != last_width || gHeight != last_height)
+    {
+        gOffscreenBuffer.Resize(gWidth, gHeight);
+        gPostProcessing.Resize(gWidth, gHeight);
+        last_width  = gWidth;
+        last_height = gHeight;
+    }
+
+
+    if (!gPauseAnimation)
+    {
+        gAnimationTime += 0.016f;
+    }
+
+
+    gOffscreenBuffer.BindForRendering();
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, gWidth, gHeight);
+
+    gFarmScene.Render(gWidth, gHeight, gAnimationTime, gZoom);
+
+
+    GLuint scene_texture = gOffscreenBuffer.GetTexture();
+
+
+    GLuint final_texture = scene_texture;
+    if (gEnablePostFX)
+    {
+        final_texture = gPostProcessing.Apply(scene_texture);
+    }
+
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, gWidth, gHeight);
+
+    glUseProgram(gScreenShader.Shader);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, final_texture);
+    glUniform1i(gScreenShader.UniformLocations.at("uColorTexture"), 0);
+
+    glBindVertexArray(gScreenVAO);
+    glDrawArrays(GL_TRIANGLES, 0, gScreenVertexCount);
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+}
+
+void demo_imgui()
+{
+    ImGui::Begin("Farm Scene");
+
+    float percent = 100.0f / gZoom;
+    ImGui::SliderFloat("Zoom", &percent, 100.0f, 400.0f);
+    gZoom = 100.0f / percent;
+
+    ImGui::SeparatorText("Animation");
+    ImGui::Checkbox("Pause Animation", &gPauseAnimation);
+
+    ImGui::SeparatorText("MSAA Settings");
+    bool msaa_changed = ImGui::Checkbox("Enable MSAA", &gUseMSAA);
+
+    ImGui::BeginDisabled(!gUseMSAA);
+
+
+    static GLint max_msaa_samples = 0;
+    if (max_msaa_samples == 0)
+    {
+        glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
+    }
+
+
+    static std::vector<int> valid_samples;
+    if (valid_samples.empty())
+    {
+        for (int samples = 2; samples <= max_msaa_samples; samples *= 2)
+        {
+            valid_samples.push_back(samples);
+        }
+    }
+
+
+    int current_index = 0;
+    for (size_t i = 0; i < valid_samples.size(); ++i)
+    {
+        if (valid_samples[i] == gMSAASamples)
+        {
+            current_index = static_cast<int>(i);
+            break;
+        }
+    }
+
+
+    std::string preview = std::to_string(gMSAASamples) + "x";
+    if (ImGui::BeginCombo("MSAA Samples", preview.c_str()))
+    {
+        for (size_t i = 0; i < valid_samples.size(); ++i)
+        {
+            bool        is_selected = (current_index == static_cast<int>(i));
+            std::string label       = std::to_string(valid_samples[i]) + "x";
+
+            if (ImGui::Selectable(label.c_str(), is_selected))
+            {
+                gMSAASamples = valid_samples[i];
+                msaa_changed = true;
+            }
+
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::EndDisabled();
+
+    if (msaa_changed)
+    {
+        const auto use_msaa = gUseMSAA ? OffscreenFramebuffer::MSAA::True : OffscreenFramebuffer::MSAA::False;
+        gOffscreenBuffer.SetMSAA(use_msaa, gMSAASamples);
+
+        gMSAASamples = gOffscreenBuffer.GetMSAASamples();
+
+        if (gUseMSAA)
+        {
+            glEnable(GL_MULTISAMPLE);
+        }
+        else
+        {
+            glDisable(GL_MULTISAMPLE);
+        }
+    }
+
+    ImGui::SeparatorText("Post-Processing Effects");
+    ImGui::Checkbox("Enable Post-FX", &gEnablePostFX);
+
+    ImGui::BeginDisabled(!gEnablePostFX);
+
+
+    if (auto* box_blur = gPostProcessing.GetEffect("Box Blur"))
+    {
+        ImGui::Checkbox(box_blur->Name.c_str(), reinterpret_cast<bool*>(&box_blur->Enabled));
+
+        ImGui::BeginDisabled(box_blur->Enabled == PostProcessingEffect::Enable::False);
+        ImGui::Indent();
+        ImGui::SliderFloat("Blur Size", &gBoxBlurSize, 0.0f, 10.0f);
+        ImGui::SliderFloat("Blur Separation", &gBoxBlurSeparation, 1.0f, 5.0f);
+        ImGui::Unindent();
+        ImGui::EndDisabled();
+    }
+
+
+    if (auto* gamma = gPostProcessing.GetEffect("Gamma Correction"))
+    {
+        ImGui::Checkbox(gamma->Name.c_str(), reinterpret_cast<bool*>(&gamma->Enabled));
+
+        ImGui::BeginDisabled(gamma->Enabled == PostProcessingEffect::Enable::False);
+        ImGui::Indent();
+        ImGui::SliderFloat("Gamma", &gGammaValue, 0.5f, 4.0f);
+        ImGui::Unindent();
+        ImGui::EndDisabled();
+    }
+
+
+    if (auto* chroma = gPostProcessing.GetEffect("Chromatic Aberration"))
+    {
+        ImGui::Checkbox(chroma->Name.c_str(), reinterpret_cast<bool*>(&chroma->Enabled));
+
+        ImGui::BeginDisabled(chroma->Enabled == PostProcessingEffect::Enable::False);
+        ImGui::Indent();
+        ImGui::SliderFloat("Focus X", &gChromaticAberrationMouseX, 0.0f, 1.0f);
+        ImGui::SliderFloat("Focus Y", &gChromaticAberrationMouseY, 0.0f, 1.0f);
+        ImGui::Unindent();
+        ImGui::EndDisabled();
+    }
+
+    if (auto* pixelization = gPostProcessing.GetEffect("Pixelization"))
+    {
+        ImGui::Checkbox(pixelization->Name.c_str(), reinterpret_cast<bool*>(&pixelization->Enabled));
+
+        ImGui::BeginDisabled(pixelization->Enabled == PostProcessingEffect::Enable::False);
+        ImGui::SliderInt("Pixel Size", &gPixelSize, 1, 800);
+        if ((gPixelSize & 1) == 0)
+        {
+            gPixelSize += 1; // make sure it's odd
+        }
+        // ImGui::Indent();
+        // ImGui::Unindent();
+        ImGui::EndDisabled();
+    }
+
+    ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Render Textures");
+
+
+    static int         selected_effect_index = -1;
+    static const char* effect_names[]        = { "Box Blur", "Gamma Correction", "Chromatic Aberration", "Pixelization" };
+    static const char* current_effect_name   = "None";
+
+    if (selected_effect_index >= 0 && selected_effect_index < 4)
+    {
+        current_effect_name = effect_names[selected_effect_index];
+    }
+
+    if (ImGui::BeginCombo("View Effect", current_effect_name))
+    {
+        if (ImGui::Selectable("None", selected_effect_index == -1))
+        {
+            selected_effect_index = -1;
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            bool is_selected = (selected_effect_index == i);
+            if (ImGui::Selectable(effect_names[i], is_selected))
+            {
+                selected_effect_index = i;
+            }
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+
+    if (gEnablePostFX && selected_effect_index >= 0 && selected_effect_index < 4)
+    {
+        if (auto* effect = gPostProcessing.GetEffect(effect_names[selected_effect_index]))
+        {
+            if (effect->Enabled == PostProcessingEffect::Enable::True && effect->Framebuffer)
+            {
+                ImGui::Text("Output Texture (%s):", effect->Name.c_str());
+                GLuint texture = effect->Framebuffer->GetTexture();
+
+                const float     aspect_ratio   = static_cast<float>(gWidth) / static_cast<float>(gHeight);
+                constexpr float display_width  = 400.0f;
+                const float     display_height = display_width / aspect_ratio;
+
+                ImGui::Image(static_cast<ImTextureRef>(texture), ImVec2(display_width, display_height), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            else if (effect->Enabled == PostProcessingEffect::Enable::False)
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Effect is disabled");
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
+
+
+================================================
+FILE: source/FarmSceneRenderer.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "FarmSceneRenderer.hpp"
+#include "Path.hpp"
+#include <cmath>
+#include <stb_perlin.h>
+
+namespace SceneHelpers
+{
+    SDFTransform calculateSDFTransform(const mat3& transform, float line_width) noexcept
+    {
+        constexpr int  mat3_width = 3;
+        constexpr auto mat3_index = [](int row, int col)
+        {
+            return col * mat3_width + row;
+        };
+        const auto  a = transform[mat3_index(0, 0)];
+        const auto  b = transform[mat3_index(0, 1)];
+        const auto  c = transform[mat3_index(1, 0)];
+        const auto  d = transform[mat3_index(1, 1)];
+        const vec2  world_size{ (std::sqrt(a * a + c * c)), (std::sqrt(b * b + d * d)) };
+        const float line_width_addition = std::max((line_width), 0.0f);
+        const vec2  quad_size           = { world_size[0] + line_width_addition, world_size[1] + line_width_addition };
+
+        const vec2 scale_up       = { quad_size[0] / world_size[0], quad_size[1] / world_size[1] };
+        mat3       quad_transform = transform;
+        quad_transform[0] *= scale_up[0];
+        quad_transform[1] *= scale_up[0];
+        quad_transform[3] *= scale_up[1];
+        quad_transform[4] *= scale_up[1];
+        return { quad_transform, world_size, quad_size };
+    }
+
+    mat3 createTransformMatrix(float scale_x, float scale_y, float rotation_radians, float translate_x, float translate_y)
+    {
+        const float rad   = rotation_radians;
+        const float cos_r = std::cos(rad);
+        const float sin_r = std::sin(rad);
+
+        return mat3{ scale_x * cos_r, scale_x * sin_r, 0.0f, -scale_y * sin_r, scale_y * cos_r, 0.0f, translate_x, translate_y, 1.0f };
+    }
+
+    mat3 mat3Multiply(const mat3& a, const mat3& b)
+    {
+        mat3 result;
+        for (std::size_t col = 0; col < 3; ++col)
+        {
+            for (std::size_t row = 0; row < 3; ++row)
+            {
+                result[col * 3 + row] = a[0 * 3 + row] * b[col * 3 + 0] + a[1 * 3 + row] * b[col * 3 + 1] + a[2 * 3 + row] * b[col * 3 + 2];
+            }
+        }
+        return result;
+    }
+
+    constexpr std::array<float, 4> hexToRGBA(unsigned int hex)
+    {
+        const unsigned int r = (hex >> 16) & 0xFF;
+        const unsigned int g = (hex >> 8) & 0xFF;
+        const unsigned int b = hex & 0xFF;
+        return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f, static_cast<float>(b) / 255.0f, 1.0f };
+    }
+
+    void drawShape(
+        const OpenGL::CompiledShader& shader, GLsizei indices_count, const mat3& to_ndc, int shape, float cx, float cy, float width, float height, const std::array<float, 4>& fill_color,
+        const std::array<float, 4>& line_color, float line_width, float rotation)
+    {
+        const auto model         = createTransformMatrix(width, height, rotation, cx, cy);
+        const auto sdf_transform = calculateSDFTransform(model, line_width);
+
+
+        glUniformMatrix3fv(shader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());
+        glUniformMatrix3fv(shader.UniformLocations.at("uModel"), 1, GL_FALSE, sdf_transform.QuadTransform.data());
+        glUniform2f(shader.UniformLocations.at("uSDFScale"), sdf_transform.QuadSize[0], sdf_transform.QuadSize[1]);
+
+
+        glUniform4fv(shader.UniformLocations.at("uFillColor"), 1, fill_color.data());
+        glUniform4fv(shader.UniformLocations.at("uLineColor"), 1, line_color.data());
+        glUniform2fv(shader.UniformLocations.at("uWorldSize"), 1, sdf_transform.WorldSize.data());
+        glUniform1f(shader.UniformLocations.at("uLineWidth"), line_width);
+        glUniform1i(shader.UniformLocations.at("uShape"), shape);
+
+        glDrawElements(GL_TRIANGLES, indices_count, GL_UNSIGNED_SHORT, nullptr);
+    }
+}
+
+FarmSceneRenderer::~FarmSceneRenderer()
+{
+    Shutdown();
+}
+
+void FarmSceneRenderer::Initialize()
+{
+    const std::filesystem::path vertex_file   = assets::locate_asset("Assets/shaders/sdf.vert");
+    const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/sdf.frag");
+    shader                                    = OpenGL::CreateShader(vertex_file, fragment_file);
+
+    struct Vertex
+    {
+        float x;
+        float y;
+    };
+
+    const Vertex vertices[] = {
+        { -0.5, -0.5 },
+        { +0.5, -0.5 },
+        { +0.5, +0.5 },
+        { -0.5, +0.5 },
+    };
+
+    const unsigned short indices[] = {
+        0, 1, 2, 0, 2, 3,
+    };
+
+    indicesCount = static_cast<GLsizei>(std::ssize(indices));
+
+
+    glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+
+    glGenVertexArrays(1, &vertexArrayObject);
+    glBindVertexArray(vertexArrayObject);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+    glVertexAttribDivisor(0, 0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void FarmSceneRenderer::Render(int viewport_width, int viewport_height, float animation_time, float zoom)
+{
+    using namespace SceneHelpers;
+
+    glUseProgram(shader.Shader);
+    glBindVertexArray(vertexArrayObject);
+
+    const mat3 to_ndc{ 2.0f / (static_cast<float>(viewport_width) * zoom), 0.0f, 0.0f, 0.0f, 2.0f / (static_cast<float>(viewport_height) * zoom), 0.0f, -1.0f / zoom, -1.0f / zoom, 1.0f };
+
+
+    constexpr float reference_width  = 800.0f;
+    constexpr float reference_height = 600.0f;
+    const float     cam_x            = (reference_width - static_cast<float>(viewport_width)) * 0.5f - 0.589f;
+    const float     cam_y            = (reference_height - static_cast<float>(viewport_height)) * 0.5f + 0.235f;
+
+
+    constexpr float right_x = 1.0f;
+    constexpr float right_y = 0.0f;
+    constexpr float up_x    = 0.0f;
+    constexpr float up_y    = 1.0f;
+    const float     view_tx = -(right_x * cam_x + right_y * cam_y);
+    const float     view_ty = -(up_x * cam_x + up_y * cam_y);
+
+    const mat3 view{ right_x, up_x, 0.0f, right_y, up_y, 0.0f, view_tx, view_ty, 1.0f };
+
+    const mat3 view_ndc = mat3Multiply(to_ndc, view);
+
+    const auto    transparent = std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 0.0f };
+    constexpr int CIRCLE      = 0;
+    constexpr int RECT        = 1;
+
+
+    const float sky_width    = static_cast<float>(viewport_width + 2);
+    const float sky_height   = static_cast<float>(std::max(viewport_height, 300)) - 200.0f + 2;
+    const float sky_center_x = 400;
+    const float sky_center_y = 200.0f + sky_height * 0.5f;
+    drawShape(shader, indicesCount, view_ndc, RECT, sky_center_x, sky_center_y, sky_width, sky_height, hexToRGBA(0x87CEEB), transparent, 0.0f);
+
+
+    const float ground_width    = static_cast<float>(viewport_width) + 2;
+    const float ground_height   = static_cast<float>(std::max(viewport_height, 300)) - 400.0f + 2;
+    const float ground_center_x = 400;
+    const float ground_center_y = 200.0f - ground_height * 0.5f;
+    drawShape(shader, indicesCount, view_ndc, RECT, ground_center_x, ground_center_y, ground_width, ground_height, hexToRGBA(0x90EE90), transparent, 0.0f);
+
+
+    const float ground_top_y    = ground_center_y + ground_height * 0.5f;
+    const float ground_bottom_y = ground_center_y - ground_height * 0.5f;
+    const float ground_left_x   = ground_center_x - ground_width * 0.5f;
+    const float ground_right_x  = ground_center_x + ground_width * 0.5f;
+
+    const float sway_animation_s = std::sin(animation_time * 1.5f * 0.25f);
+    const float sway_animation_c = std::cos(animation_time * 1.5f * 0.25f);
+
+
+    for (float y = ground_bottom_y + 10.0f; y < ground_top_y; y += 15.0f)
+    {
+        for (float x = ground_left_x + 10.0f; x < ground_right_x; x += 15.0f)
+        {
+            const float noise_value = stb_perlin_noise3(x * 0.02f, y * 0.02f, 0.0f, 0, 0, 0);
+            if (noise_value < 0.3f)
+                continue;
+
+
+            if (y > 150 && ((x > 100 && x < 280) || (x > 300 && x < 400) || (x > 500 && x < 650)))
+                continue;
+
+            const float phase      = noise_value * 3.14159f;
+            const float grass_sway = (sway_animation_s * std::cos(phase) + sway_animation_c * std::sin(phase)) * 0.2f;
+
+            const float blade_noise = stb_perlin_noise3(x * 0.05f, y * 0.05f, 1.0f, 0, 0, 0);
+            const int   blade_count = 3 + static_cast<int>((blade_noise + 1.0f) * 1.0f);
+
+            for (int i = 0; i < blade_count; ++i)
+            {
+                const float offset_x     = static_cast<float>(i) * 3.0f - static_cast<float>(blade_count - 1) * 1.5f;
+                const float height_noise = stb_perlin_noise3(x * 0.1f + static_cast<float>(i), y * 0.1f, 2.0f, 0, 0, 0);
+                const float blade_height = 10.0f + height_noise * 3.0f;
+                const float blade_sway   = grass_sway + std::sin(static_cast<float>(i) * 1.5f) * 0.03f;
+
+                drawShape(shader, indicesCount, view_ndc, RECT, x + offset_x, y, 1, blade_height, hexToRGBA(0x228B22), transparent, 0.0f, blade_sway);
+            }
+        }
+    }
+
+
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 700, 520, 100, 100, hexToRGBA(0xFFD700), hexToRGBA(0xFFA500), 3.0f);
+
+
+    const float cloud_speed     = 20.0f;
+    const float cloud_width     = 150.0f;
+    const float screen_width    = static_cast<float>(viewport_width);
+    const float wrap_distance   = screen_width + cloud_width;
+    const float cloud_offset    = std::fmod(animation_time * cloud_speed, wrap_distance);
+    const float left_screen_pad = -cloud_width * 0.5f;
+
+
+    const float cloud1_base = 150.0f - cam_x;
+    const float cloud1_x    = std::fmod(cloud1_base + cloud_offset + wrap_distance, wrap_distance) + left_screen_pad + cam_x;
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud1_x, 500, 60, 60, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud1_x + 30, 500, 70, 70, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud1_x + 60, 500, 60, 60, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+
+
+    const float cloud2_base = 450.0f - cam_x;
+    const float cloud2_x    = std::fmod(cloud2_base + cloud_offset + wrap_distance, wrap_distance) + left_screen_pad + cam_x;
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud2_x, 450, 50, 50, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud2_x + 25, 450, 60, 60, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, cloud2_x + 50, 450, 50, 50, hexToRGBA(0xFFFFFF), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 175, 240, 150, 120, hexToRGBA(0xD2691E), hexToRGBA(0x8B4513), 3.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 175, 315, 190, 50, hexToRGBA(0x8B0000), hexToRGBA(0x5A0000), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 205, 215, 50, 70, hexToRGBA(0x654321), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 220, 215, 8, 8, hexToRGBA(0xFFD700), hexToRGBA(0x000000), 1.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 140, 260, 40, 40, hexToRGBA(0x87CEEB), hexToRGBA(0x000000), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 140, 260, 4, 40, hexToRGBA(0x000000), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 140, 260, 40, 4, hexToRGBA(0x000000), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 575, 240, 150, 120, hexToRGBA(0x4682B4), hexToRGBA(0x27408B), 3.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 575, 315, 190, 50, hexToRGBA(0x2F4F4F), hexToRGBA(0x1C1C1C), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 605, 215, 50, 70, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 620, 215, 8, 8, hexToRGBA(0xFFD700), hexToRGBA(0x000000), 1.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 540, 260, 40, 40, hexToRGBA(0x87CEEB), hexToRGBA(0x000000), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 540, 260, 4, 40, hexToRGBA(0x000000), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 540, 260, 40, 4, hexToRGBA(0x000000), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 365, 235, 30, 70, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 365 + sway_animation_s * 5.0f, 290, 80, 80, hexToRGBA(0x228B22), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 345 + sway_animation_s * 4.0f, 280, 70, 70, hexToRGBA(0x228B22), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 385 + sway_animation_s * 6.0f, 280, 70, 70, hexToRGBA(0x228B22), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 742.5, 230, 25, 60, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 742 + sway_animation_s * 4.0f, 275, 70, 70, hexToRGBA(0x32CD32), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 725 + sway_animation_s * 3.5f, 265, 60, 60, hexToRGBA(0x32CD32), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 760 + sway_animation_s * 5.0f, 265, 60, 60, hexToRGBA(0x32CD32), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 330, 115, 100, 50, hexToRGBA(0x228B22), hexToRGBA(0x006400), 3.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 350, 150, 60, 40, hexToRGBA(0x228B22), hexToRGBA(0x006400), 3.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 350, 149.5, 40, 25, hexToRGBA(0x87CEEB), hexToRGBA(0x000000), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 270, 107.5, 40, 35, hexToRGBA(0xFFD700), hexToRGBA(0xFFA500), 2.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 329, 177.5, 8, 25, hexToRGBA(0x696969), hexToRGBA(0x000000), 1.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 350, 100, 60, 60, hexToRGBA(0x2F4F4F), hexToRGBA(0x000000), 4.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 350, 100, 30, 30, hexToRGBA(0x696969), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 270, 90, 40, 40, hexToRGBA(0x2F4F4F), hexToRGBA(0x000000), 3.0f);
+    drawShape(shader, indicesCount, view_ndc, CIRCLE, 270, 90, 20, 20, hexToRGBA(0x696969), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 55, 195, 10, 50, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 95, 195, 10, 50, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 455, 195, 10, 50, hexToRGBA(0x8B4513), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 495, 195, 10, 50, hexToRGBA(0x8B4513), transparent, 0.0f);
+
+
+    drawShape(shader, indicesCount, view_ndc, RECT, 75, 202, 60, 6, hexToRGBA(0xA0522D), transparent, 0.0f);
+    drawShape(shader, indicesCount, view_ndc, RECT, 475, 202, 60, 6, hexToRGBA(0xA0522D), transparent, 0.0f);
+
+
+    const auto draw_flower = [&](float base_x, float base_y, float stem_width, float stem_length, float head_radius, unsigned int head_color)
+    {
+        const float stem_angle = sway_animation_c * 0.2f;
+        const float cosa       = std::cos(stem_angle);
+        const float sina       = std::sin(stem_angle);
+        const float stem_top_x = -sina * 0.5f * stem_length;
+        const float stem_top_y = cosa * 0.5f * stem_length;
+        drawShape(shader, indicesCount, view_ndc, RECT, base_x, base_y, stem_width, stem_length, hexToRGBA(0x228B22), transparent, 0.0f, stem_angle);
+        drawShape(shader, indicesCount, view_ndc, CIRCLE, base_x + stem_top_x, base_y + stem_top_y, head_radius, head_radius, hexToRGBA(head_color), transparent, 0.0f);
+    };
+
+
+    draw_flower(182, 67.5, 4, 25, 16, 0xFF69B4);
+    draw_flower(222, 70, 4, 30, 16, 0xFF1493);
+    draw_flower(602, 65, 4, 20, 14, 0xFFD700);
+    draw_flower(642, 68.5, 4, 27, 16, 0xFF6347);
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void FarmSceneRenderer::Shutdown()
+{
+    if (vertexBuffer != 0)
+    {
+        glDeleteBuffers(1, &vertexBuffer);
+        vertexBuffer = 0;
+    }
+    if (indexBuffer != 0)
+    {
+        glDeleteBuffers(1, &indexBuffer);
+        indexBuffer = 0;
+    }
+    if (vertexArrayObject != 0)
+    {
+        glDeleteVertexArrays(1, &vertexArrayObject);
+        vertexArrayObject = 0;
+    }
+    if (shader.Shader != 0)
+    {
+        glDeleteProgram(shader.Shader);
+        shader.Shader = 0;
+    }
+}
+
+
+
+================================================
+FILE: source/FarmSceneRenderer.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include "Shader.hpp"
+#include <GL/glew.h>
+#include <array>
+
+using mat3 = std::array<float, 9>;
+using vec2 = std::array<float, 2>;
+
+struct SDFTransform
+{
+    mat3 QuadTransform;
+    vec2 WorldSize;
+    vec2 QuadSize;
+};
+
+namespace SceneHelpers
+{
+
+    SDFTransform                   calculateSDFTransform(const mat3& transform, float line_width) noexcept;
+    mat3                           createTransformMatrix(float scale_x, float scale_y, float rotation_radians, float translate_x, float translate_y);
+    mat3                           mat3Multiply(const mat3& a, const mat3& b);
+    constexpr std::array<float, 4> hexToRGBA(unsigned int hex);
+    void                           drawShape(
+                                  const OpenGL::CompiledShader& shader, GLsizei indices_count, const mat3& to_ndc, int shape, float cx, float cy, float width, float height, const std::array<float, 4>& fill_color,
+                                  const std::array<float, 4>& line_color, float line_width, float rotation = 0.0f);
+}
+
+class FarmSceneRenderer
+{
+public:
+    FarmSceneRenderer() = default;
+    ~FarmSceneRenderer();
+
+    FarmSceneRenderer(const FarmSceneRenderer&)            = delete;
+    FarmSceneRenderer& operator=(const FarmSceneRenderer&) = delete;
+
+    void Initialize();
+    void Render(int viewport_width, int viewport_height, float animation_time, float zoom);
+    void Shutdown();
+
+private:
+    OpenGL::CompiledShader shader{};
+    OpenGL::Handle         vertexBuffer{ 0 };
+    OpenGL::Handle         indexBuffer{ 0 };
+    OpenGL::Handle         vertexArrayObject{ 0 };
+    GLsizei                indicesCount{ 0 };
+};
+
+
+
+================================================
+FILE: source/Handle.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+namespace OpenGL
+{
+
+    using Handle = unsigned;
+}
+
+
+
+================================================
+FILE: source/ImGuiHelper.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "ImGuiHelper.hpp"
+
+#include <SDL.h>
+#include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <imgui.h>
+#include <imgui_internal.h>
+
+namespace
+{
+    std::string   gImGuiSaveFilePath;
+    SDL_Window*   gCachedWindow    = nullptr;
+    SDL_GLContext gCachedGLContext = nullptr;
+}
+
+namespace ImGuiHelper
+{
+    void Initialize(gsl::not_null<SDL_Window*> sdl_window, gsl::not_null<SDL_GLContext> gl_context, const std::filesystem::path& ini_file_path)
+    {
+        gCachedWindow    = sdl_window;
+        gCachedGLContext = gl_context;
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            gImGuiSaveFilePath = ini_file_path.string();
+            io.IniFilename     = gImGuiSaveFilePath.c_str();
+        }
+        ImGui_ImplSDL2_InitForOpenGL(sdl_window, gl_context);
+        ImGui_ImplOpenGL3_Init();
+    }
+
+    void FeedEvent(const SDL_Event& event)
+    {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+    }
+
+    Viewport Begin()
+    {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+
+        {
+            const ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingInCentralNode;
+            const ImGuiWindowFlags   window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+            const ImGuiViewport* const main_viewport   = ImGui::GetMainViewport();
+            const auto                 window_position = main_viewport->Pos;
+            const auto                 window_size     = main_viewport->Size;
+            ImGui::SetNextWindowPos(window_position);
+            ImGui::SetNextWindowSize(window_size);
+            ImGui::SetNextWindowViewport(main_viewport->ID);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+            ImGui::Begin("Main Window Dockspace", nullptr, window_flags);
+            ImGui::PopStyleVar(3);
+            const ImGuiID dockspace_id = ImGui::GetID("Main Window Dockspace");
+            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+
+            const ImGuiDockNode* const node = ImGui::DockBuilderGetCentralNode(dockspace_id);
+            if (node == nullptr) [[unlikely]]
+                return Viewport{ 0, 0, static_cast<int>(window_size.x), static_cast<int>(window_size.y) };
+
+            const int opengl_x = static_cast<int>((node->Pos.x - window_position.x));
+            const int opengl_y = static_cast<int>((window_size.y - ((node->Pos.y - window_position.y) + node->Size.y)));
+            const int opengl_w = static_cast<int>(node->Size.x);
+            const int opengl_h = static_cast<int>(node->Size.y);
+            ImGui::End();
+            return Viewport{ opengl_x, opengl_y, opengl_w, opengl_h };
+        }
+    }
+
+    void End()
+    {
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            SDL_GL_MakeCurrent(gCachedWindow, gCachedGLContext);
+        }
+    }
+
+    void Shutdown()
+    {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
+
+        gCachedWindow    = nullptr;
+        gCachedGLContext = nullptr;
+    }
+}
+
+
+
+================================================
+FILE: source/ImGuiHelper.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include <filesystem>
+#include <gsl/gsl>
+
+struct SDL_Window;
+typedef void* SDL_GLContext;
+union SDL_Event;
+
+namespace ImGuiHelper
+{
+    void Initialize(gsl::not_null<SDL_Window*> sdl_window, gsl::not_null<SDL_GLContext> gl_context, const std::filesystem::path& ini_file_path = "imgui.ini");
+    void FeedEvent(const SDL_Event& event);
+
+    struct Viewport
+    {
+        int  x = 0, y = 0;
+        int  width = 0, height = 0;
+        bool operator==(const Viewport&) const = default;
+    };
+
+    Viewport Begin();
+    void     End();
+    void     Shutdown();
+
+}
+
+
+
+================================================
+FILE: source/main.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "ImGuiHelper.hpp"
+#include <GL/glew.h>
+#include <SDL.h>
+#include <gsl/gsl>
+#include <iostream>
+
+gsl::owner<SDL_Window*>   gWindow  = nullptr;
+gsl::owner<SDL_GLContext> gContext = nullptr;
+bool                      gIsDone  = false;
+int                       gWidth   = 800;
+int                       gHeight  = 600;
+
+#if defined(__EMSCRIPTEN__)
+#    include <emscripten.h>
+#    include <emscripten/bind.h>
+
+EMSCRIPTEN_BINDINGS(main_window)
+{
+    emscripten::function("setWindowSize", emscripten::optional_override([](int sizeX, int sizeY) { SDL_SetWindowSize(gWindow, sizeX, sizeY); }));
+}
+
+#endif
+
+
+void demo_setup();
+void demo_draw();
+void demo_imgui();
+void demo_shutdown();
+
+void setup()
+{
+    ImGuiHelper::Initialize(gWindow, gContext);
+    demo_setup();
+}
+
+void main_loop();
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
+{
+#ifdef DEVELOPER_VERSION
+    std::cout << "Developer Version\n";
+#endif
+
+#ifdef IS_WEBGL2
+    std::cout << "WebGL 2 Version\n";
+#else
+    std::cout << "OpenGL Desktop Version\n";
+#endif
+
+    std::cout << "Hello World!\nRudy is here\n";
+
+
+    SDL_Init(SDL_INIT_VIDEO);
+#ifdef IS_WEBGL2
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#else
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
+
+
+    gWindow = SDL_CreateWindow("CS200 Fun", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+
+    gContext = SDL_GL_CreateContext(gWindow);
+
+    SDL_GL_MakeCurrent(gWindow, gContext);
+
+    glewInit();
+
+
+    constexpr int ADAPTIVE_SYNC = -1;
+    constexpr int VSYNC         = 1;
+    if (const auto result = SDL_GL_SetSwapInterval(ADAPTIVE_SYNC); result != 0)
+    {
+        SDL_GL_SetSwapInterval(VSYNC);
+    }
+
+    setup();
+
+#if !defined(__EMSCRIPTEN__)
+    while (!gIsDone)
+    {
+        main_loop();
+    }
+#else
+    const bool simulate_infinte_loop   = true;
+    const int  match_browser_framerate = -1;
+    emscripten_set_main_loop(main_loop, match_browser_framerate, simulate_infinte_loop);
+#endif
+
+    demo_shutdown();
+    SDL_GL_DeleteContext(gContext);
+    SDL_DestroyWindow(gWindow);
+    SDL_Quit();
+
+    return 0;
+}
+
+void main_loop()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event) != 0)
+    {
+        ImGuiHelper::FeedEvent(event);
+        switch (event.type)
+        {
+            case SDL_WINDOWEVENT:
+                if (event.window.windowID == SDL_GetWindowID(gWindow))
+                {
+                    if (event.window.event == SDL_WINDOWEVENT_CLOSE)
+                    {
+                        gIsDone = true;
+                    }
+                    if (event.window.event == SDL_WINDOWEVENT_RESIZED || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                    {
+                        gWidth  = event.window.data1;
+                        gHeight = event.window.data2;
+                    }
+                }
+                break;
+            case SDL_QUIT: gIsDone = true; break;
+
+            default: break;
+        }
+    }
+
+
+    glViewport(0, 0, gWidth, gHeight);
+    demo_draw();
+
+
+    [[maybe_unused]] const auto viewport = ImGuiHelper::Begin();
+    demo_imgui();
+    ImGuiHelper::End();
+
+
+    SDL_GL_SwapWindow(gWindow);
+}
+
+
+
+================================================
+FILE: source/OffscreenFramebuffer.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "OffscreenFramebuffer.hpp"
+#include <algorithm>
+#include <iostream>
+
+namespace
+{
+    int ValidateMSAASamples(int samples)
+    {
+        GLint max_samples = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &max_samples);
+
+        samples = std::max(2, std::min(samples, max_samples));
+
+        samples = samples & ~1;
+
+        return samples;
+    }
+}
+
+OffscreenFramebuffer::~OffscreenFramebuffer()
+{
+    Shutdown();
+}
+
+void OffscreenFramebuffer::Initialize(int width, int height, [[maybe_unused]] MSAA use_msaa, [[maybe_unused]] int msaa_samples)
+{
+    currentWidth  = width;
+    currentHeight = height;
+
+    useMSAA       = (use_msaa == MSAA::True);
+    msaaSamples   = ValidateMSAASamples(msaa_samples);
+
+    createResolveFramebuffer();
+    createMSAAFramebuffer();
+}
+
+void OffscreenFramebuffer::BindForRendering()
+{
+
+    GLuint target = useMSAA ? msaaFramebuffer : resolveFramebuffer;
+    // GLuint target = resolveFramebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, target);
+}
+
+GLuint OffscreenFramebuffer::GetTexture()
+{
+    resolveMSAA();
+    return resolveTexture;
+}
+
+void OffscreenFramebuffer::Resize(int width, int height)
+{
+    currentWidth  = width;
+    currentHeight = height;
+
+    createResolveFramebuffer();
+    createMSAAFramebuffer();
+}
+
+void OffscreenFramebuffer::SetMSAA([[maybe_unused]] MSAA use_msaa, [[maybe_unused]] int msaa_samples)
+{
+    useMSAA     = use_msaa == MSAA::False ? false : true;
+    msaaSamples = ValidateMSAASamples(msaa_samples);
+
+    if (currentWidth > 0 && currentHeight > 0)
+    {
+        createMSAAFramebuffer();
+    }
+}
+
+void OffscreenFramebuffer::Shutdown()
+{
+    if (resolveFramebuffer != 0)
+    {
+        glDeleteFramebuffers(1, &resolveFramebuffer);
+        resolveFramebuffer = 0;
+    }
+    if (resolveTexture != 0)
+    {
+        glDeleteTextures(1, &resolveTexture);
+        resolveTexture = 0;
+    }
+
+    if (msaaFramebuffer != 0)
+    {
+        glDeleteFramebuffers(1, &msaaFramebuffer);
+        msaaFramebuffer = 0;
+    }
+    if (msaaColorRenderbuffer != 0)
+    {
+        glDeleteRenderbuffers(1, &msaaColorRenderbuffer);
+        msaaColorRenderbuffer = 0;
+    }
+}
+
+void OffscreenFramebuffer::createResolveFramebuffer()
+{
+    if (resolveFramebuffer == 0)
+    {
+        glGenFramebuffers(1, &resolveFramebuffer);
+    }
+
+    if (resolveTexture != 0)
+    {
+        glDeleteTextures(1, &resolveTexture);
+        resolveTexture = 0;
+    }
+
+    glGenTextures(1, &resolveTexture);
+    glBindTexture(GL_TEXTURE_2D, resolveTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+#ifdef IS_WEBGL2
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, currentWidth, currentHeight);
+#else
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, currentWidth, currentHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+#endif
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, resolveFramebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resolveTexture, 0);
+
+    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cerr << "Failed to create resolve framebuffer\n";
+        std::exit(-1);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void OffscreenFramebuffer::createMSAAFramebuffer()
+{
+    if (!useMSAA)
+        return;
+
+    if (msaaFramebuffer == 0)
+    {
+        glGenFramebuffers(1, &msaaFramebuffer);
+    }
+
+    if (msaaColorRenderbuffer != 0)
+    {
+        glDeleteRenderbuffers(1, &msaaColorRenderbuffer);
+        msaaColorRenderbuffer = 0;
+    }
+
+    glGenRenderbuffers(1, &msaaColorRenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, msaaColorRenderbuffer);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, msaaSamples, GL_RGBA8, currentWidth, currentHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, msaaFramebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, msaaColorRenderbuffer);
+
+    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cerr << "Failed to create MSAA framebuffer\n";
+        std::exit(-1);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void OffscreenFramebuffer::resolveMSAA()
+{
+
+    if (!useMSAA)
+        return;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, msaaFramebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveFramebuffer);
+    glBlitFramebuffer(0, 0, currentWidth, currentHeight, 0, 0, currentWidth, currentHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+
+
+================================================
+FILE: source/OffscreenFramebuffer.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include "Shader.hpp"
+#include <GL/glew.h>
+
+class OffscreenFramebuffer
+{
+public:
+    OffscreenFramebuffer() = default;
+    ~OffscreenFramebuffer();
+
+
+    OffscreenFramebuffer(const OffscreenFramebuffer&)            = delete;
+    OffscreenFramebuffer& operator=(const OffscreenFramebuffer&) = delete;
+
+    enum class MSAA : bool
+    {
+        False,
+        True
+    };
+    void   Initialize(int width, int height, MSAA use_msaa = MSAA::False, int msaa_samples = 4);
+    void   BindForRendering();
+    GLuint GetTexture();
+    void   Resize(int width, int height);
+    void   SetMSAA(MSAA use_msaa, int msaa_samples);
+
+    int GetMSAASamples() const
+    {
+        return msaaSamples;
+        // return 0;
+    }
+
+    void Shutdown();
+
+private:
+    int            currentWidth{ 0 };
+    int            currentHeight{ 0 };
+
+    bool           useMSAA{ false };
+    int            msaaSamples{ 4 };
+    OpenGL::Handle resolveFramebuffer{ 0 };
+    OpenGL::Handle resolveTexture{ 0 };
+
+    OpenGL::Handle msaaFramebuffer{ 0 };
+    OpenGL::Handle msaaColorRenderbuffer{ 0 };
+
+    void createResolveFramebuffer();
+    void createMSAAFramebuffer();
+    void resolveMSAA();
+};
+
+
+
+================================================
+FILE: source/Path.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "Path.hpp"
+
+#include <SDL.h>
+#include <optional>
+
+namespace
+{
+    std::optional<std::filesystem::path> try_get_asset_path(const std::filesystem::path& starting_directory)
+    {
+        namespace fs                 = std::filesystem;
+        fs::path       assets_parent = fs::absolute(starting_directory);
+        const fs::path root          = assets_parent.root_path();
+
+
+        do
+        {
+            const fs::path assets_folder = assets_parent / "Assets";
+            if (fs::is_directory(assets_folder))
+            {
+                return assets_parent;
+            }
+
+            assets_parent = assets_parent.parent_path();
+        } while (assets_parent != root);
+
+        return std::nullopt;
+    }
+}
+
+namespace assets
+{
+
+    std::filesystem::path get_base_path()
+    {
+        namespace fs                  = std::filesystem;
+        static fs::path assets_folder = []()
+        {
+            auto result = try_get_asset_path(fs::current_path());
+            if (result)
+                return result.value();
+
+            const auto base_path = SDL_GetBasePath();
+            result               = try_get_asset_path(base_path);
+            SDL_free(base_path);
+            if (result)
+                return result.value();
+            throw std::runtime_error{ "Failed to find Assets folder in parent folders" };
+        }();
+        return assets_folder;
+    }
+
+    std::filesystem::path locate_asset(const std::filesystem::path& asset_path)
+    {
+        auto asset_filepath = asset_path;
+        if (!std::filesystem::exists(asset_filepath))
+        {
+            asset_filepath = get_base_path() / asset_filepath;
+            if (!std::filesystem::exists(asset_filepath))
+            {
+                throw std::runtime_error("Failed to locate asset: " + asset_path.string());
+            }
+        }
+        return asset_filepath;
+    }
+}
+
+
+
+================================================
+FILE: source/Path.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include <filesystem>
+
+namespace assets
+{
+
+    std::filesystem::path get_base_path();
+    std::filesystem::path locate_asset(const std::filesystem::path& asset_path);
+}
+
+
+
+================================================
+FILE: source/PostProcessingPipeline.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "PostProcessingPipeline.hpp"
+#include <array>
+#include <iostream>
+
+PostProcessingPipeline::~PostProcessingPipeline()
+{
+    Shutdown();
+}
+
+void PostProcessingPipeline::Initialize(int width, int height)
+{
+    currentWidth  = width;
+    currentHeight = height;
+
+    setupFullscreenTriangle();
+
+    for (auto& effect : effects)
+    {
+        createFramebuffer(effect);
+    }
+}
+
+void PostProcessingPipeline::AddEffect(PostProcessingEffect&& effect)
+{
+    effects.push_back(std::move(effect));
+
+    if (currentWidth > 0 && currentHeight > 0)
+    {
+        createFramebuffer(effects.back());
+    }
+}
+
+GLuint PostProcessingPipeline::Apply(GLuint input_texture)
+{
+    GLuint current_texture = input_texture;
+
+    for (const auto& effect : effects)
+    {
+        if (effect.Enabled == PostProcessingEffect::Enable::True && effect.Framebuffer)
+        {
+            renderEffect(effect, current_texture);
+            current_texture = effect.Framebuffer->GetTexture();
+        }
+    }
+
+    return current_texture;
+}
+
+void PostProcessingPipeline::Resize(int width, int height)
+{
+    currentWidth  = width;
+    currentHeight = height;
+
+    for (auto& effect : effects)
+    {
+        if (effect.Framebuffer)
+        {
+            effect.Framebuffer->Resize(currentWidth, currentHeight);
+        }
+    }
+}
+
+void PostProcessingPipeline::Shutdown()
+{
+    for (auto& effect : effects)
+    {
+        if (effect.Framebuffer)
+        {
+            effect.Framebuffer->Shutdown();
+            effect.Framebuffer.reset();
+        }
+        if (effect.Shader.Shader != 0)
+        {
+            glDeleteProgram(effect.Shader.Shader);
+            effect.Shader.Shader = 0;
+        }
+    }
+    effects.clear();
+
+    if (fullscreenVAO != 0)
+    {
+        glDeleteVertexArrays(1, &fullscreenVAO);
+        fullscreenVAO = 0;
+    }
+    if (fullscreenVBO != 0)
+    {
+        glDeleteBuffers(1, &fullscreenVBO);
+        fullscreenVBO = 0;
+    }
+}
+
+PostProcessingEffect* PostProcessingPipeline::GetEffect(const std::string& name)
+{
+    for (auto& effect : effects)
+    {
+        if (effect.Name == name)
+        {
+            return &effect;
+        }
+    }
+    return nullptr;
+}
+
+void PostProcessingPipeline::createFramebuffer(PostProcessingEffect& effect)
+{
+    if (!effect.Framebuffer)
+    {
+        effect.Framebuffer = std::make_unique<OffscreenFramebuffer>();
+    }
+
+    effect.Framebuffer->Initialize(currentWidth, currentHeight, OffscreenFramebuffer::MSAA::False);
+}
+
+void PostProcessingPipeline::renderEffect(const PostProcessingEffect& effect, GLuint input_texture)
+{
+    effect.Framebuffer->BindForRendering();
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, currentWidth, currentHeight);
+
+    glUseProgram(effect.Shader.Shader);
+
+    effect.SetUniforms(effect.Shader);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, input_texture);
+    glUniform1i(effect.Shader.UniformLocations.at("uColorTexture"), 0);
+
+    glBindVertexArray(fullscreenVAO);
+    glDrawArrays(GL_TRIANGLES, 0, fullscreenVertexCount);
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void PostProcessingPipeline::setupFullscreenTriangle()
+{
+    struct FullscreenVertex
+    {
+        float x, y;
+        float u, v;
+    };
+
+    const FullscreenVertex vertices[] = {
+        { -1.0f, -1.0f, 0.0f, 0.0f },
+        {  3.0f, -1.0f, 2.0f, 0.0f },
+        { -1.0f,  3.0f, 0.0f, 2.0f },
+    };
+
+    fullscreenVertexCount = static_cast<GLsizei>(std::ssize(vertices));
+
+    glGenBuffers(1, &fullscreenVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, fullscreenVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenVertexArrays(1, &fullscreenVAO);
+    glBindVertexArray(fullscreenVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, fullscreenVBO);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), nullptr);
+    glVertexAttribDivisor(0, 0);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), reinterpret_cast<void*>(2 * sizeof(float)));
+    glVertexAttribDivisor(1, 0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+
+
+================================================
+FILE: source/PostProcessingPipeline.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include "OffscreenFramebuffer.hpp"
+#include "Shader.hpp"
+#include <GL/glew.h>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+struct PostProcessingEffect
+{
+    std::string Name;
+    enum class Enable : bool
+    {
+        False,
+        True
+    };
+    Enable                                Enabled;
+    OpenGL::CompiledShader                Shader;
+    std::unique_ptr<OffscreenFramebuffer> Framebuffer;
+
+    using SetUniformsFunction = std::function<void(const OpenGL::CompiledShader&)>;
+    SetUniformsFunction SetUniforms;
+
+    PostProcessingEffect(
+        const std::string& name, Enable enabled, OpenGL::CompiledShader shader, SetUniformsFunction set_uniforms = [](const OpenGL::CompiledShader&) { })
+        : Name(name), Enabled(enabled), Shader(shader), Framebuffer(nullptr), SetUniforms(set_uniforms)
+    {
+    }
+};
+
+class PostProcessingPipeline
+{
+public:
+    PostProcessingPipeline() = default;
+    ~PostProcessingPipeline();
+
+    PostProcessingPipeline(const PostProcessingPipeline&)            = delete;
+    PostProcessingPipeline& operator=(const PostProcessingPipeline&) = delete;
+
+    void                  Initialize(int width, int height);
+    void                  AddEffect(PostProcessingEffect&& effect);
+    GLuint                Apply(GLuint input_texture);
+    void                  Resize(int width, int height);
+    void                  Shutdown();
+    PostProcessingEffect* GetEffect(const std::string& name);
+
+private:
+    std::vector<PostProcessingEffect> effects{};
+    int                               currentWidth{ 0 };
+    int                               currentHeight{ 0 };
+    OpenGL::Handle                    fullscreenVAO{ 0 };
+    OpenGL::Handle                    fullscreenVBO{ 0 };
+    GLsizei                           fullscreenVertexCount{ 0 };
+
+    void createFramebuffer(PostProcessingEffect& effect);
+    void renderEffect(const PostProcessingEffect& effect, GLuint input_texture);
+    void setupFullscreenTriangle();
+};
+
+
+
+================================================
+FILE: source/Shader.cpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#include "Shader.hpp"
+
+#include <GL/glew.h>
+#include <algorithm>
+#include <fstream>
+#include <gsl/gsl>
+#include <iostream>
+#include <sstream>
+
+namespace
+{
+    void                                                 print_glsl_text(std::string_view source);
+    [[nodiscard]] OpenGL::Handle                         compile_shader_source(GLenum type, std::string_view glsl_text);
+    [[nodiscard]] OpenGL::Handle                         compile_shader_file(GLenum type, const std::filesystem::path& file_path);
+    [[nodiscard]] OpenGL::ShaderHandle                   link_shader_program(OpenGL::Handle vertex_handle, OpenGL::Handle fragment_handle);
+    [[nodiscard]] std::unordered_map<std::string, GLint> get_uniform_locations(OpenGL::ShaderHandle shader);
+}
+
+namespace OpenGL
+{
+    CompiledShader CreateShader(std::filesystem::path vertex_filepath, std::filesystem::path fragment_filepath)
+    {
+        const auto     vertex_handle   = compile_shader_file(GL_VERTEX_SHADER, vertex_filepath);
+        const auto     fragment_handle = compile_shader_file(GL_FRAGMENT_SHADER, fragment_filepath);
+        CompiledShader cs{};
+        cs.Shader           = link_shader_program(vertex_handle, fragment_handle);
+        cs.UniformLocations = get_uniform_locations(cs.Shader);
+        return cs;
+    }
+
+    CompiledShader CreateShader(std::string_view vertex_source, std::string_view fragment_source)
+    {
+        const auto     vertex_handle   = compile_shader_source(GL_VERTEX_SHADER, vertex_source);
+        const auto     fragment_handle = compile_shader_source(GL_FRAGMENT_SHADER, fragment_source);
+        CompiledShader cs{};
+        cs.Shader           = link_shader_program(vertex_handle, fragment_handle);
+        cs.UniformLocations = get_uniform_locations(cs.Shader);
+        return cs;
+    }
+
+    void DestroyShader(CompiledShader& shader) noexcept
+    {
+        glDeleteProgram(shader.Shader);
+        shader.Shader = 0;
+
+        shader.UniformLocations.clear();
+    }
+
+    void BindUniformBufferToShader(ShaderHandle shader_handle, GLuint binding_number, Handle uniform_bufer, std::string_view uniform_block_name)
+    {
+        const auto block_index = glGetUniformBlockIndex(shader_handle, uniform_block_name.data());
+        if (block_index != GL_INVALID_INDEX)
+        {
+            glUniformBlockBinding(shader_handle, block_index, binding_number);
+            glBindBufferBase(GL_UNIFORM_BUFFER, binding_number, uniform_bufer);
+        }
+        else
+        {
+            std::cout << ("Uniform block '" + std::string(uniform_block_name) + "' not found in shader.") << '\n';
+        }
+    }
+}
+
+namespace
+{
+    void print_glsl_text(std::string_view source)
+    {
+        using CountInt                          = decltype(std::count(source.begin(), source.end(), '\n'));
+        CountInt           num_lines            = std::count(source.begin(), source.end(), '\n');
+        const int          max_linenumber_width = static_cast<int>(std::to_string(num_lines).size());
+        CountInt           line_number          = 1;
+        std::string        line;
+        std::ostringstream sout;
+        std::istringstream source_stream(source.data());
+        while (std::getline(source_stream, line))
+        {
+            sout << std::setw(max_linenumber_width) << std::right << line_number << "| " << line << '\n';
+            ++line_number;
+        }
+        std::cout << (sout.str()) << '\n';
+    }
+
+    OpenGL::Handle compile_shader_source(GLenum type, std::string_view glsl_text)
+    {
+        OpenGL::Handle shader = glCreateShader(type);
+        GLchar const*  source[]{ glsl_text.data() };
+        glShaderSource(shader, 1, source, nullptr);
+        glCompileShader(shader);
+        GLint is_compiled = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &is_compiled);
+        if (is_compiled == GL_FALSE)
+        {
+            GLint log_length = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+            std::string error_log;
+            error_log.resize(static_cast<std::string::size_type>(log_length) + 1);
+            glGetShaderInfoLog(shader, log_length, nullptr, error_log.data());
+            glDeleteShader(shader);
+            shader = 0;
+            std::cout << (error_log) << '\n';
+            print_glsl_text(glsl_text);
+            throw std::runtime_error(error_log);
+        }
+        return shader;
+    }
+
+    OpenGL::Handle compile_shader_file(GLenum type, const std::filesystem::path& file_path)
+    {
+        const auto    shader_file_path = (file_path);
+        std::ifstream ifs(shader_file_path, std::ios::in);
+        if (!ifs)
+        {
+            std::cout << ("Cannot open " + file_path.string()) << '\n';
+            return 0;
+        }
+        std::string glsl_text;
+        glsl_text.reserve(gsl::narrow<std::size_t>(std::filesystem::file_size(shader_file_path)));
+        std::copy((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>(), std::back_insert_iterator(glsl_text));
+        return compile_shader_source(type, std::string_view(glsl_text));
+    }
+
+    OpenGL::ShaderHandle link_shader_program(OpenGL::Handle vertex_handle, OpenGL::Handle fragment_handle)
+    {
+        OpenGL::ShaderHandle program_handle = glCreateProgram();
+        if (program_handle == 0)
+        {
+            throw std::runtime_error("Unable to create program\n");
+        }
+
+        glAttachShader(program_handle, vertex_handle);
+        glAttachShader(program_handle, fragment_handle);
+
+        glLinkProgram(program_handle);
+
+        glDeleteShader(vertex_handle);
+        glDeleteShader(fragment_handle);
+
+        GLint is_linked = 0;
+        glGetProgramiv(program_handle, GL_LINK_STATUS, &is_linked);
+        if (is_linked == GL_FALSE)
+        {
+            GLint log_length = 0;
+            glGetProgramiv(program_handle, GL_INFO_LOG_LENGTH, &log_length);
+            std::string error;
+            error.resize(static_cast<unsigned>(log_length) + 1);
+            glGetProgramInfoLog(program_handle, log_length, nullptr, error.data());
+            std::cout << (error) << '\n';
+            throw std::runtime_error(error);
+        }
+        return program_handle;
+    }
+
+    std::unordered_map<std::string, GLint> get_uniform_locations(OpenGL::ShaderHandle shader)
+    {
+        std::unordered_map<std::string, GLint> uniform_locations;
+        GLint                                  num_uniforms = 0;
+        glGetProgramiv(shader, GL_ACTIVE_UNIFORMS, &num_uniforms);
+        if (num_uniforms <= 0)
+        {
+            return uniform_locations;
+        }
+        GLint max_name_length = 0;
+        glGetProgramiv(shader, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_name_length);
+        uniform_locations.reserve(static_cast<std::size_t>(num_uniforms));
+        std::string uniform_name;
+        uniform_name.resize(static_cast<std::size_t>(max_name_length));
+
+        for (GLint i = 0; i < num_uniforms; ++i)
+        {
+            GLsizei length = 0;
+            GLint   size   = 0;
+            GLenum  type   = 0;
+            glGetActiveUniform(shader, static_cast<GLuint>(i), max_name_length, &length, &size, &type, uniform_name.data());
+            uniform_name.resize(static_cast<std::size_t>(length));
+            GLint location = glGetUniformLocation(shader, uniform_name.c_str());
+            if (location != -1)
+            {
+                uniform_locations[uniform_name] = location;
+            }
+            uniform_name.resize(static_cast<std::size_t>(max_name_length));
+        }
+        return uniform_locations;
+    }
+}
+
+
+
+================================================
+FILE: source/Shader.hpp
+================================================
+/**
+ * \file
+ * \author Rudy Castan
+ * \date 2025 Fall
+ * \par CS200 Computer Graphics I
+ * \copyright DigiPen Institute of Technology
+ */
+
+
+#pragma once
+
+#include "Handle.hpp"
+#include <GL/glew.h>
+#include <filesystem>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+
+namespace OpenGL
+{
+    using ShaderHandle = Handle;
+
+    struct [[nodiscard]] CompiledShader
+    {
+        ShaderHandle                           Shader;
+        std::unordered_map<std::string, GLint> UniformLocations;
+    };
+
+    CompiledShader CreateShader(std::filesystem::path vertex_filepath, std::filesystem::path fragment_filepath);
+    CompiledShader CreateShader(std::string_view vertex_source, std::string_view fragment_source);
+    void           DestroyShader(CompiledShader& shader) noexcept;
+    void           BindUniformBufferToShader(ShaderHandle shader_handle, GLuint binding_number, Handle uniform_bufer, std::string_view uniform_block_name);
+}
+
+
