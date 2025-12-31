@@ -48,3 +48,6 @@ $RECYCLE.BIN/
 .TemporaryItems
 ehthumbs.db
 Thumbs.db
+
+#ignore
+opengl_starter/
