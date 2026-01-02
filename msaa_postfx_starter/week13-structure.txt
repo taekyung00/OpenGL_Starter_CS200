@@ -1,0 +1,57 @@
+Directory: msaa_postfx_starter
+Files analyzed: 43
+
+Estimated tokens: 69.1k
+Directory structure:
+└── msaa_postfx_starter/
+    ├── README.md
+    ├── CMakeLists.txt
+    ├── CMakePresets.json
+    ├── split_ingest.py
+    ├── week13.txt
+    ├── .clang-format
+    ├── app_resources/
+    │   └── web/
+    │       └── index_shell.html
+    ├── Assets/
+    │   └── shaders/
+    │       ├── box-blur.frag
+    │       ├── chromatic-aberration.frag
+    │       ├── gamma-correct.frag
+    │       ├── pixelize.frag
+    │       ├── sdf.frag
+    │       ├── sdf.vert
+    │       ├── simple-texture.frag
+    │       └── simple.vert
+    ├── cmake/
+    │   ├── CompilerWarnings.cmake
+    │   ├── Dependencies.cmake
+    │   ├── StandardProjectSettings.cmake
+    │   └── dependencies/
+    │       ├── DearImGUI.cmake
+    │       ├── GLEW.cmake
+    │       ├── GSL.cmake
+    │       ├── OpenGL.cmake
+    │       ├── SDL2.cmake
+    │       └── STB.cmake
+    ├── docs/
+    │   ├── DebuggingWeb.md
+    │   └── DevEnvironment.md
+    └── source/
+        ├── README.md
+        ├── CMakeLists.txt
+        ├── demo.cpp
+        ├── FarmSceneRenderer.cpp
+        ├── FarmSceneRenderer.hpp
+        ├── Handle.hpp
+        ├── ImGuiHelper.cpp
+        ├── ImGuiHelper.hpp
+        ├── main.cpp
+        ├── OffscreenFramebuffer.cpp
+        ├── OffscreenFramebuffer.hpp
+        ├── Path.cpp
+        ├── Path.hpp
+        ├── PostProcessingPipeline.cpp
+        ├── PostProcessingPipeline.hpp
+        ├── Shader.cpp
+        └── Shader.hpp
