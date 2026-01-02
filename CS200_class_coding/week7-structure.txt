@@ -1,8 +1,17 @@
+Directory: CS200_class_coding
+Files analyzed: 43
+
+Estimated tokens: 49.4k
 Directory structure:
 └── CS200_class_coding/
     ├── README.md
     ├── CMakeLists.txt
     ├── CMakePresets.json
+    ├── split_ingest.py
+    ├── week7-1.txt
+    ├── week7-2.txt
+    ├── week7-3.txt
+    ├── week7-structure.txt
     ├── .clang-format
     ├── app_resources/
     │   └── web/
@@ -46,8 +55,3 @@ Directory structure:
         ├── Random.hpp
         ├── Shader.cpp
         └── Shader.hpp
-
-
-
-
-
