@@ -1,0 +1,58 @@
+Directory: CS200_class_coding
+Files analyzed: 44
+
+Estimated tokens: 74.4k
+Directory structure:
+└── CS200_class_coding/
+    ├── README.md
+    ├── CMakeLists.txt
+    ├── CMakePresets.json
+    ├── split_ingest.py
+    ├── week9.txt
+    ├── .clang-format
+    ├── app_resources/
+    │   └── web/
+    │       └── index_shell.html
+    ├── Assets/
+    │   └── shaders/
+    │       ├── basic.frag
+    │       ├── basic.vert
+    │       ├── batch.frag
+    │       ├── batch.vert
+    │       ├── instance.frag
+    │       └── instance.vert
+    ├── cmake/
+    │   ├── CompilerWarnings.cmake
+    │   ├── Dependencies.cmake
+    │   ├── StandardProjectSettings.cmake
+    │   └── dependencies/
+    │       ├── DearImGUI.cmake
+    │       ├── GLEW.cmake
+    │       ├── GSL.cmake
+    │       ├── OpenGL.cmake
+    │       ├── SDL2.cmake
+    │       └── STB.cmake
+    ├── docs/
+    │   ├── DebuggingWeb.md
+    │   └── DevEnvironment.md
+    └── source/
+        ├── BatchRenderer2D.cpp
+        ├── BatchRenderer2D.hpp
+        ├── CMakeLists.txt
+        ├── demo.cpp
+        ├── FPS.hpp
+        ├── Handle.hpp
+        ├── ImGuiHelper.cpp
+        ├── ImGuiHelper.hpp
+        ├── ImmediateRenderer2D.cpp
+        ├── ImmediateRenderer2D.hpp
+        ├── InstancedRenderer2D.cpp
+        ├── InstancedRenderer2D.hpp
+        ├── IRenderer2D.hpp
+        ├── main.cpp
+        ├── Path.cpp
+        ├── Path.hpp
+        ├── Random.cpp
+        ├── Random.hpp
+        ├── Shader.cpp
+        └── Shader.hpp
