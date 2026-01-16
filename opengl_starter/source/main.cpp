@@ -142,15 +142,17 @@ void main()
                                        16, 17, 18, 16, 18, 19, 16, 21, 17,
                                        // middle mouth part
                                        20, 21, 16, 20, 16, 13
-
     };
     gIndicesCount = static_cast<GLsizei>(std::ssize(indices));//size for just size, ssize for signed size
 
     // buffer of vertex data
-    glGenBuffers(1, &gVertexBuffer); //generate buffers, set up to create many buffers all in one go, create a unique ID
-    glBindBuffer(GL_ARRAY_BUFFER, gVertexBuffer); //feed this vertex buffer with my verticies data but before bind unique buffer, param : type of buffer, param : unique id
+    glGenBuffers(1, &gVertexBuffer); //generate buffers, set up to create many buffers all in one go, create a unique ID -> gVertexBuffer에 값 하나를 배정해준다
+    glBindBuffer(GL_ARRAY_BUFFER, gVertexBuffer); //feed this vertex buffer with my verticies data but before bind unique buffer, param : type of buffer, param : unique id 
+    // 현재 작업중인 버퍼 포인터를 gVertexBuffer의 id값으로 설정
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); //feed, param : type, param : size, param : real data(decay to pointer), param : static/dynamic
+    // 실제 데이터 복사 발생 -> GL_ARRAY_BUFFER종류, sizeof(vertices)만큼, 시스템 RAM의 vertices 데이터를 GPU, VRAM으로 복사
     glBindBuffer(GL_ARRAY_BUFFER, 0); // unbind - good practice, 0 means nothing : no buffer
+    // 버퍼 오염 방지 위해 바인딩 해제
 
     // buffer of index data
     glGenBuffers(1, &gIndexBuffer); 
@@ -205,6 +207,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
 
     SDL_Init(SDL_INIT_VIDEO); /**< SDL_INIT_VIDEO implies SDL_INIT_EVENTS , SDL_INIT_EVENTS: events subsystem*/
+    //OS 에 권한을 요청함, SDL_INIT_VIDEO : 비디오 디스플레이, 마우스 클릭, 키보드 입력, 창 닫기 버튼 등등의 신호를 받을 준비
 #ifdef IS_WEBGL2
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES); //"es !!"
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3); //desktop version automatically pick highest version, but in webversion we have to specify
@@ -216,12 +219,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     // double buffer, bits for color, depth, stencil, multisampling
 
     gWindow = SDL_CreateWindow("CS200 Fun", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-
+    // 창 1개 생성, 창의 정보를 담은 핸들이 gWindow에 담김
     gContext = SDL_GL_CreateContext(gWindow); //ask the grapics card to get an implementation of OpenGL, use glew library(GL, cross platform)
-
+    // 그래픽카드 상태 저장할 메모리공간을 만듦
+    // opengl은 상태머신이기 때문에 이 context가 현재 상태를 담고있음
     SDL_GL_MakeCurrent(gWindow, gContext);
+    // 현재 스레드/gpu에서 gWindow와 gContext를 사용하겠다고 지정
 
     glewInit();
+    // glGenBuffers 등등의 함수가 들어있는 포인터를 그래픽카드 드라이버에서 받아옴
 
     // Vsync
     constexpr int ADAPTIVE_SYNC = -1; //better sync

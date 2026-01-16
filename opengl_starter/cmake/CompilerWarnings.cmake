@@ -12,6 +12,7 @@ function(set_project_warnings project_name)
 
   set(MSVC_WARNINGS
       /W4 # Baseline reasonable warnings
+      /utf-8 # Set source and execution character sets to UTF-8 (fixes C4819 on non-English Windows)
       /w14242 # 'identifier': conversion from 'type1' to 'type1', possible loss
               # of data
       /w14254 # 'operator': conversion from 'type1:field_bits' to
