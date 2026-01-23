@@ -361,6 +361,7 @@ void main_loop()
 
     glBindBuffer(GL_ARRAY_BUFFER, gBackground.vertexBuffer);
     glBufferSubData(GL_ARRAY_BUFFER, 0 , static_cast<GLsizeiptr>(gBackground.vertices.size() * sizeof(gBackground.vertices[0])), gBackground.vertices.data()); // just sub? ****
+    //매 프레임 CPU에서 sin/cos으로 값을 바꾸고, **glBufferSubData**를 호출하여 CPU 메모리에서 GPU 메모리로 데이터를 **복사(Upload)**합니다.
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // drawing with opengl
     glViewport(0, 0, gWidth, gHeight); // param : (offset.x,offset.y,width,height) useful to set offset if game has two player and each has their own camera , feed latest-updated window sized so..
