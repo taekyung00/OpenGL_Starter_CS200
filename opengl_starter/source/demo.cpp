@@ -122,7 +122,6 @@ void demo_setup()
 
     // copy the color values to the GPU as a texture
 
-
     glGenTextures(1, &gDuckTexture);
     glBindTexture(GL_TEXTURE_2D, gDuckTexture);
 
