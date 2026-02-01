@@ -26,7 +26,7 @@ void demo_setup()
     const std::filesystem::path fragment_file = assets::locate_asset("Assets/shaders/basic.frag");
     gShader                                   = OpenGL::CreateShader(vertex_file, fragment_file);
 
-    // vertex buffer that has 2D position adn some "texture coordinates"
+    // vertex buffer that has 2D position and some "texture coordinates" (instead of color)
 
     struct vertex
     {
@@ -117,7 +117,7 @@ void demo_setup()
 
     int           w = 0, h = 0;
     constexpr int num_channels       = 4;                                                                                 // rgba
-    int           files_num_channels = 0;                                                                                 // to here
+    int           files_num_channels = 0;//왜 만들었나? 그리고 어디에 쓰이나?                                                                                 // to here
     const auto    image_bytes        = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels); // loading, use dynamic memory so we need free
 
     // copy the color values to the GPU as a texture
