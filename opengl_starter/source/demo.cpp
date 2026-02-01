@@ -148,7 +148,6 @@ void demo_setup()
     stbi_image_free(image_bytes);    // free first, cause we don't need it
     glBindTexture(GL_TEXTURE_2D, 0); // we got color from texture, so we don't need it anymore
 
-
     // and we can draw in draw func..
 }
 
