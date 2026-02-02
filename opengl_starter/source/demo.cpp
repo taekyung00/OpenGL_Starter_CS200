@@ -96,9 +96,9 @@ void demo_setup()
                                                                               // do we need to go next data, location of the very first bytes to be read : 0, but it takes void* so..
     glVertexAttribDivisor(0, 0); // called instancing..not now, param : index, how many instances of this mode need this value ; don't need this right now but use in assign
 
-    // describes our rgb color
+    // describes our texture coordinates
     glEnableVertexAttribArray(1);                                                                     // turn on location 1
-    ptrdiff_t offset = 2 * sizeof(float);                                                             // because {x,y,*r*,g,b} -> need 2 offset!
+    ptrdiff_t offset = 2 * sizeof(float);                                                             // because {x,y,*s,t*} -> need 2 offset!
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), reinterpret_cast<void*>(offset)); // now we need just 2
     glVertexAttribDivisor(1, 0);
 
@@ -117,7 +117,7 @@ void demo_setup()
 
     int           w = 0, h = 0;
     constexpr int num_channels       = 4;                                                                                 // rgba
-    int           files_num_channels = 0;//왜 만들었나? 그리고 어디에 쓰이나?                                                                                 // to here
+    int           files_num_channels = 0;//원래 이 파일이 몇 채널인지를 받아온다, 그런데 num_channels로 강제로 4채널로 바꿔서 읽는다, 그래서 이 변수는 쓰이지 않는다        // to here
     const auto    image_bytes        = stbi_load(image_path.string().c_str(), &w, &h, &files_num_channels, num_channels); // loading, use dynamic memory so we need free
 
     // copy the color values to the GPU as a texture
@@ -178,22 +178,22 @@ void demo_draw()
 
     fvec2 cat_image_size     = { 640.f, 256.f };
     fvec2 cat_frame_size     = { 128.f, 128.f };
-    fvec2 cat_texel_position = { 0.f, 0.f };
+    fvec2 cat_texel_position = { 0.f, 0.f }; // start from top-left corner
 
     const auto           size = static_cast<float>(std::min(cat_frame_size.x, cat_frame_size.y));
     const fvec2 screen_size = {800.f, 600.f};
-    fvec2 go_to_bl = {-screen_size.x * 0.5f + cat_frame_size.x * 0.5f, -screen_size.y * 0.5f + cat_frame_size.y * 0.5f};
+    fvec2 go_to_bl = {-screen_size.x * 0.5f + cat_frame_size.x * 0.5f, -screen_size.y * 0.5f + cat_frame_size.y * 0.5f}; // make bl corner of quad to bl corner of screen
     std::array<float, 9> model{ size, 0.0f, 0.0f, 0.0f, size, 0.0f, go_to_bl.x, go_to_bl.y, 1.0f };
 
-    
-    std::array<float, 9> texcoord_transform = { cat_frame_size.x / cat_image_size.x,
+    fvec2 atlas_size = { cat_frame_size.x/ cat_image_size.x, cat_frame_size.y/ cat_image_size.y }; // 1 frame size in uv space
+    std::array<float, 9> texcoord_transform = { atlas_size.x,
                                                 0.0f,
                                                 0.0f,
                                                 0.0f,
-                                                cat_frame_size.y / cat_image_size.y,
+                                                atlas_size.y,
                                                 0.0f,
-                                                (cat_frame_size.x / cat_image_size.x) * (cat_texel_position.x / cat_frame_size.x),
-                                                (cat_frame_size.y / cat_image_size.y) * ((cat_image_size.y- (cat_texel_position.y + cat_frame_size.y))  / cat_frame_size.y),
+                                                (atlas_size.x) * (cat_texel_position.x / cat_frame_size.x),
+                                                (atlas_size.y) * ((cat_image_size.y- cat_texel_position.y + cat_frame_size.y)  / cat_frame_size.y),
                                                 1.0f };                                                            // to shrink tex_coord to just one frame
     glUniformMatrix3fv(gShader.UniformLocations.at("uToNDC"), 1, GL_FALSE, to_ndc.data());                         // bind matrices first, ndc matrix has to be uniform because it doesn't change
     glUniformMatrix3fv(gShader.UniformLocations.at("uModel"), 1, GL_FALSE, model.data());                          // bind matrices first, ndc matrix has to be uniform because it doesn't change
