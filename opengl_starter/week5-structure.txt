@@ -1,0 +1,47 @@
+Directory: opengl_starter
+Files analyzed: 33
+
+Estimated tokens: 42.9k
+Directory structure:
+└── opengl_starter/
+    ├── README.md
+    ├── CMakeLists.txt
+    ├── CMakePresets.json
+    ├── split_ingest.py
+    ├── week5.txt
+    ├── .clang-format
+    ├── app_resources/
+    │   └── web/
+    │       └── index_shell.html
+    ├── Assets/
+    │   └── shaders/
+    │       ├── sdf.frag
+    │       ├── sdf.vert
+    │       └── sdf_practice.frag
+    ├── cmake/
+    │   ├── CompilerWarnings.cmake
+    │   ├── Dependencies.cmake
+    │   ├── StandardProjectSettings.cmake
+    │   └── dependencies/
+    │       ├── DearImGUI.cmake
+    │       ├── GLEW.cmake
+    │       ├── GSL.cmake
+    │       ├── OpenGL.cmake
+    │       ├── SDL2.cmake
+    │       └── STB.cmake
+    ├── docs/
+    │   ├── DebuggingWeb.md
+    │   └── DevEnvironment.md
+    └── source/
+        ├── CMakeLists.txt
+        ├── demo.cpp
+        ├── Handle.hpp
+        ├── ImGuiHelper.cpp
+        ├── ImGuiHelper.hpp
+        ├── main.cpp
+        ├── Path.cpp
+        ├── Path.hpp
+        ├── Random.cpp
+        ├── Random.hpp
+        ├── Shader.cpp
+        └── Shader.hpp
