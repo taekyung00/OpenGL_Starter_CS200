@@ -1,14 +1,16 @@
 Directory: opengl_starter
-Files analyzed: 33
+Files analyzed: 35
 
-Estimated tokens: 42.9k
+Estimated tokens: 47.7k
 Directory structure:
 └── opengl_starter/
     ├── README.md
     ├── CMakeLists.txt
     ├── CMakePresets.json
     ├── split_ingest.py
-    ├── week5.txt
+    ├── week5-setting.txt
+    ├── week5-source.txt
+    ├── week5-structure.txt
     ├── .clang-format
     ├── app_resources/
     │   └── web/

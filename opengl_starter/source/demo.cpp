@@ -76,13 +76,15 @@ void demo_setup()
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, gFrameWidth, gFrameHeight); // level means "how many!!"
 #else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gFrameWidth, gFrameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    //image_bytes == nullptr -> reserve memory only
+    //이렇게 확보한 메모리에, FBO를 생성 후 컬러/뎁스 어태치먼트로 붙여서 사용
 #endif
     glBindTexture(GL_TEXTURE_2D, 0);
 
     glGenFramebuffers(1, &gOffscreenFramebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, gOffscreenFramebuffer);
     // default framebuffer is zero(handle..?)
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gOffscreenTexture, 0); // so all of things we draw in fbo is saved in gOffscreenTexture// attatchment can be color of stencil or depth, we pick first color
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gOffscreenTexture, 0); // *부착* so all of things we draw in fbo is saved in gOffscreenTexture// attatchment can be color of stencil or depth, we pick first color
     [[maybe_unused]]constexpr GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 };                                        // if we want multiple color buffers, we can match up
     glDrawBuffers(1, draw_buffers); //apply above settings
     const auto status_result = glCheckFramebufferStatus(GL_FRAMEBUFFER);
